@@ -51,7 +51,13 @@ npm run tauri:build    # 打包：产出 msi / nsis 安装包
 
 ## 已知要点
 
-- CSP 里放行了 `api.deepseek.com` 与 `localhost:11434`，
-  如果你换 AI 服务商，记得同步改 `tauri.conf.json` 的 `app.security.csp`。
+- **CSP 是白名单，新增任何外部服务都要同步改** `tauri.conf.json` 的 `app.security.csp`。
+  当前的 `connect-src` 允许：自身资源、`ipc:`（Tauri 内部调用）、**任意 HTTPS**、
+  以及 `localhost` / `127.0.0.1` 的任意端口。
+  放通任意 HTTPS 是**刻意**的：用户可以在设置里填任意 AI 服务商地址
+  （DeepSeek、OpenAI 兼容接口、自部署…），写死白名单会让这些直接连不上。
+  代价是页面里的脚本理论上能把数据发到任意 HTTPS 地址 ——
+  本项目没有第三方脚本（`script-src 'self'`），风险可控。
 - 首次编译 Tauri 很慢（几分钟，要编几百个 crate），之后是增量的。
-- 全局快捷键如果和系统/其它软件冲突，改 `main.rs` 里的 `Alt+Space` 即可。
+- 全局快捷键**默认不注册**（会和输入法、截图工具抢键）。
+  用户在「设置 → 界面」里开启后才会注册，默认 `Alt+Space`，可在同一处改。
