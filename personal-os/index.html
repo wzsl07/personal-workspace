@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- viewport-fit=cover：适配 iPhone 刘海/灵动岛，配合下面的 safe-area 内边距 -->
+    <meta name="theme-color" content="#0f1115" />
+    <meta name="description" content="本地优先的个人日程与知识库管理" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <!-- iOS 添加到主屏幕 -->
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="个人工作台" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>个人工作台 · 日程与知识库</title>
+    <style>
+      /* 首屏骨架，避免白屏闪烁；Tailwater 接管后仍生效 */
+      html, body, #root { height: 100%; margin: 0; background: #0f1115; color: #e6e9f0; }
+      .boot { display: flex; align-items: center; justify-content: center; height: 100%;
+        font: 14px system-ui, -apple-system, "Microsoft YaHei", sans-serif; color: #6b7590; }
+    </style>
+  </head>
+  <body>
+    <div id="root"><div class="boot">正在打开本地数据库…</div></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

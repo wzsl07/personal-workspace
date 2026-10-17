@@ -1,0 +1,59 @@
+{
+  "name": "personal-os",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "description": "本地优先的个人日程与知识库管理系统",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wzsl07/personal-os"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "version:sync": "node scripts/sync-version.mjs",
+    "dist:check": "node scripts/check-dist.mjs",
+    "dist:portable": "node scripts/make-portable.mjs",
+    "release": "node scripts/make-release.mjs",
+    "ocr:setup": "node scripts/setup-ocr.mjs",
+    "model:setup": "node scripts/setup-model.mjs",
+    "icons": "python scripts/gen-icons.py",
+    "build:mobile": "vite build && node scripts/trim-mobile.mjs",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "dependencies": {
+    "@esbuild/win32-x64": "^0.21.5",
+    "@huggingface/transformers": "^3.8.1",
+    "@rollup/rollup-win32-x64-msvc": "^4.64.3",
+    "@tauri-apps/api": "^2.12.2",
+    "date-fns": "^4.1.0",
+    "dexie": "^4.0.10",
+    "dexie-react-hooks": "^1.1.7",
+    "lucide-react": "^0.462.0",
+    "mammoth": "^1.13.0",
+    "markdown-it": "^14.1.0",
+    "minisearch": "^7.1.1",
+    "nanoid": "^5.0.9",
+    "pdfjs-dist": "^4.10.38",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tesseract.js": "^5.1.1",
+    "zustand": "^5.0.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.1",
+    "@types/markdown-it": "^14.1.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}
