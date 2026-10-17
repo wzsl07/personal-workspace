@@ -405,6 +405,6 @@ DIST_AUTHOR_USER=你的用户名 DIST_AUTHOR_GITHUB=你的GitHub名 npm run dist
 
 ## 许可
 
-MIT，见 [`../docs/LICENSE`](../docs/LICENSE)。
+MIT，见仓库根目录的 [`LICENSE`](../LICENSE)。
 第三方依赖许可见 [`../docs/THIRD-PARTY-NOTICES.md`](../docs/THIRD-PARTY-NOTICES.md)。
 隐私说明见 [`../docs/PRIVACY.md`](../docs/PRIVACY.md)。
