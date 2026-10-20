@@ -233,10 +233,16 @@ async function ghWrite(
    * GitHub Contents API 的读走 CDN，**刚写完立刻读很可能拿到旧 sha**，
    * 于是 PUT 报 409 "does not match <旧 sha>"，而且重读还是旧值 ——
    * 这个坑从报错文案完全看不出来，只会让人去怀疑分支名。
+   *
+   * ⚠️ 千万别顺手加 `Cache-Control: no-cache` / `Pragma: no-cache` 这类请求头。
+   * 它们是非标准头，会让浏览器先发 CORS 预检；GitHub 的
+   * `Access-Control-Allow-Headers` 不含这两个，预检直接被拒 ——
+   * 而 `cache: 'no-store'` 是 fetch 的**选项**不是请求头，不触发预检，安全性一样。
+   * 症状很有迷惑性：GET 正常、PUT 报 "Failed to fetch"，看起来像网络问题。
    */
   const currentSha = async (): Promise<string | undefined> => {
     const res = await fetch(`${url}?ref=${encodeURIComponent(branch)}&_=${Date.now()}`, {
-      headers: { ...headers, 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      headers,
       cache: 'no-store',
     });
     if (res.status === 200) return ((await res.json()) as GhFile).sha;
@@ -252,7 +258,27 @@ async function ghWrite(
       body: JSON.stringify(sha ? { ...payload, sha } : payload),
     });
 
-  let res = await doPut(await currentSha());
+  /**
+   * fetch 抛的不是 HTTP 错误，而是**请求根本没发出去**（网络中断、代理挂掉、
+   * 或 CORS 预检被拒）。这时 `e.message` 只有一句 "Failed to fetch"，
+   * 对用户毫无信息量 —— 翻译成人话，并给出可操作的排查方向。
+   */
+  const send = async (sha?: string): Promise<Response> => {
+    try {
+      return await doPut(sha);
+    } catch (e) {
+      throw new Error(
+        `请求没能发出去（${e instanceof Error ? e.message : String(e)}）。` +
+          '这不是账号或仓库配置的问题，而是网络层被拦断了。常见原因：' +
+          '① 代理 / VPN 不稳定或已断开；' +
+          '② 网络环境屏蔽了 api.github.com；' +
+          '③ 浏览器层面的跨域预检被拒。' +
+          '可以先断开代理再试一次，或换一个网络（如手机热点）。',
+      );
+    }
+  };
+
+  let res = await send(await currentSha());
 
   /**
    * 409 重试：重新读 sha 再写，最多 3 次，退避 250 / 1000 / 2250ms。
@@ -260,7 +286,7 @@ async function ghWrite(
    */
   for (let attempt = 1; attempt <= 3 && res.status === 409; attempt += 1) {
     await new Promise((r) => setTimeout(r, 250 * attempt * attempt));
-    res = await doPut(await currentSha());
+    res = await send(await currentSha());
   }
 
   if (!res.ok) {
