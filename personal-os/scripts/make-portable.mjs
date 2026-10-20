@@ -64,7 +64,19 @@ if (ageDays > 1 && src === builtExe) {
 
 const outName = `个人工作台-${version}-win-x64-便携版`;
 const staging = join(root, 'dist-portable', outName);
-rmSync(staging, { recursive: true, force: true });
+
+/**
+ * 清空上一次的产物。
+ *
+ * 注意：某些环境（如 WorkBuddy 的 safe-delete 垫片）会把删除重定向到回收站，
+ * 回收站操作失败时直接抛错，导致脚本中断。但产物目录存不存在都不影响结果 ——
+ * 下面的 cpSync 会覆盖同名文件。所以这里失败就跳过，不当作致命错误。
+ */
+try {
+  rmSync(staging, { recursive: true, force: true });
+} catch {
+  console.log('[便携版] 旧目录删不掉（可能是安全删除策略），改为直接覆盖');
+}
 mkdirSync(staging, { recursive: true });
 copyFileSync(src, join(staging, '个人工作台.exe'));
 
@@ -108,7 +120,11 @@ writeFileSync(
 );
 
 const zipPath = join(root, 'dist-portable', `${outName}.zip`);
-rmSync(zipPath, { force: true });
+try {
+  rmSync(zipPath, { force: true });
+} catch {
+  /* 同上：删不掉就让 Compress-Archive 用 -Force 覆盖 */
+}
 
 // Windows 自带 PowerShell 的 Compress-Archive，不依赖任何第三方压缩工具
 try {
