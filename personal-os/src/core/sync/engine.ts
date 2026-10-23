@@ -149,7 +149,9 @@ export async function runSync(): Promise<SyncOutcome> {
     await importSnapshot(JSON.stringify(merged));
     await adapter.write(cfg, secret, merged);
   } catch (e) {
-    return fail(`写入失败：${e instanceof Error ? e.message : e}`);
+    // 适配器抛的错已经说清是"写入失败"了，这里再加前缀会变成
+    // "写入失败：写入失败：409…"，看着像两个错误。直接透传。
+    return fail(e instanceof Error ? e.message : String(e));
   }
 
   // 更新基线 = 合并后的 rev

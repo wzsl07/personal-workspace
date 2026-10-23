@@ -1,6 +1,6 @@
 /* 手写 Service Worker：只做同源静态资源缓存，保证断网可打开。
    不缓存任何跨域请求，也不缓存 IndexedDB（数据本来就存本地）。 */
-const CACHE = 'personal-os-v1';
+const CACHE = 'personal-os-v2';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
