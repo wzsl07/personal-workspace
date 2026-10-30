@@ -14,6 +14,7 @@ dist/
 dist-release/
 dist-portable/
 dist-site/
+dist-web/
 mobile-app/
 **/src-tauri/target/
 **/src-tauri/gen/

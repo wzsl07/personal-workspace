@@ -1,26 +1,40 @@
 import type { Attachment } from '../domain/types';
+import { fmtBytes, prepareImage } from './image';
 
 /**
- * OCR 适配器。
+ * OCR 适配器（本地）。
  *
- * 为了守住"零外链"，这里**默认关闭**，且：
+ * 为了守住"零外链"，这里只在本机跑：
  * - worker / core(wasm) 从本地 ./ocr/ 目录加载（由 `npm run ocr:setup` 复制出来）
  * - 语言包 chi_sim/eng.traineddata 体积约 6.6MB，不随产物分发，
  *   需要你自己放进 public/ocr/；设置页也可以填一个自托管的 langPath。
  * - 缺语言包时报明确错误，绝不偷偷去 CDN 下载。
+ *
+ * 想更快更准可以走云端视觉模型，见 `ai/vision.ts`。
  */
+
+/**
+ * 图片识别走哪条路：
+ * - auto  优先云端，失败自动退回本地（默认）
+ * - cloud 只用云端，本地不参与
+ * - local 只用本地，绝不联网
+ */
+export type OcrMode = 'auto' | 'cloud' | 'local';
 
 export interface OcrConfig {
   enabled: boolean;
   /** 语言包目录或完整 URL，默认 ./ocr/ */
   langPath: string;
   lang: string;
+  /** 识别策略，默认 auto（云端优先，失败退回本地） */
+  mode: OcrMode;
 }
 
 export const DEFAULT_OCR: OcrConfig = {
-  enabled: false,
+  enabled: true,
   langPath: './ocr/',
   lang: 'chi_sim+eng',
+  mode: 'auto',
 };
 
 /** 'chi_sim+eng' → ['chi_sim', 'eng'] */
@@ -122,10 +136,19 @@ export async function warmUp(cfg: OcrConfig): Promise<void> {
   await getWorker(cfg).catch(() => undefined);
 }
 
+export interface OcrImageOptions {
+  onProgress?: (p: OcrProgress) => void;
+  /**
+   * 超时（毫秒）。必须要有：tesseract 在手机上跑大图可能几十秒不出结果，
+   * 万一 worker 被系统杀掉，Promise 永远不会 settle —— 界面就永远转圈。
+   */
+  timeoutMs?: number;
+}
+
 export async function ocrImage(
   blob: Blob,
   cfg: OcrConfig,
-  onProgress?: (p: OcrProgress) => void,
+  opts: OcrImageOptions = {},
 ): Promise<string> {
   if (!cfg.enabled) throw new Error('图片 OCR 未启用（设置 → 附件与 OCR）');
 
@@ -139,15 +162,35 @@ export async function ocrImage(
     );
   }
 
-  const worker = await getWorker(cfg, onProgress);
+  // 缩放到长边 1600：手机上能快 2~3 倍，还能显著降低被系统杀掉的概率
+  const prepared = await prepareImage(blob);
+  if (prepared.scaled) {
+    opts.onProgress?.({ status: `已缩放至 ${prepared.width}×${prepared.height}`, progress: 0 });
+  }
+
+  const worker = await getWorker(cfg, opts.onProgress);
+  const limit = opts.timeoutMs ?? 120_000;
+  const timer = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error(`本地识别超时（${Math.round(limit / 1000)} 秒），可改用云端识别`)), limit),
+  );
   try {
-    const { data } = await worker.recognize(blob);
+    const { data } = await Promise.race([worker.recognize(prepared.blob), timer]);
     return data.text ?? '';
   } catch (e) {
+    if (e instanceof Error && e.message.includes('超时')) throw e;
     const msg = e instanceof Error ? e.message : String(e);
     throw new Error(`图片识别失败：${msg}`);
   }
 }
+
+/** 本地这条路现在能不能用（语言包是否齐全） */
+export async function localOcrStatus(cfg: OcrConfig): Promise<string> {
+  const missing = await missingLangs(cfg);
+  if (missing.length === 0) return '';
+  return `缺少语言包 ${missing.map((m) => `${m}.traineddata`).join('、')}`;
+}
+
+export { fmtBytes };
 
 export function isImage(a: Attachment): boolean {
   return a.mime.startsWith('image/');

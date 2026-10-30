@@ -49,6 +49,11 @@ export interface AIConfig {
   allowCloud: boolean;
   /** 云端失败/断网时自动降级到 Ollama → 规则 */
   autoFallback: boolean;
+  /**
+   * 识图专用的模型名。留空则自动推断（DeepSeek → deepseek-flash，其它用 model）。
+   * 需要单独配置是因为：文本模型未必支持图片，比如 DeepSeek 的 deepseek-chat 只吃文本。
+   */
+  visionModel?: string;
 }
 
 export interface AIProvider {
@@ -62,17 +67,19 @@ export interface AIProvider {
 export const DEFAULT_CONFIG: AIConfig = {
   provider: 'deepseek',
   baseURL: 'https://api.deepseek.com/v1',
-  model: 'deepseek-chat',
+  // deepseek-chat / deepseek-reasoner 已于 2026 年下线，当前主力是 deepseek-flash
+  model: 'deepseek-flash',
   apiKey: '',
   allowCloud: true,
   autoFallback: true,
+  visionModel: 'deepseek-flash',
 };
 
 export const PROVIDER_PRESETS: Record<
   Exclude<AIProviderId, 'rule' | 'none'>,
   { label: string; baseURL: string; model: string }
 > = {
-  deepseek: { label: 'DeepSeek', baseURL: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+  deepseek: { label: 'DeepSeek', baseURL: 'https://api.deepseek.com/v1', model: 'deepseek-flash' },
   ollama: { label: 'Ollama（本地）', baseURL: 'http://localhost:11434/v1', model: 'qwen2.5:7b' },
   custom: { label: '自定义 API', baseURL: 'http://localhost:8080/v1', model: 'gpt-4o-mini' },
 };

@@ -85,9 +85,23 @@ export function AISettings() {
             className="field"
             value={cfg.model}
             onChange={(e) => patch({ model: e.target.value })}
-            placeholder="deepseek-chat / qwen2.5:7b"
+            placeholder="deepseek-flash / qwen2.5:7b"
           />
         </div>
+        <div>
+          <label className="label">识图模型（选填）</label>
+          <input
+            className="field"
+            value={cfg.visionModel ?? ''}
+            onChange={(e) => patch({ visionModel: e.target.value })}
+            placeholder="deepseek-flash"
+          />
+        </div>
+      </div>
+      <div className="text-[11px] text-fg-dim leading-5">
+        「识图模型」只用于图片 OCR。文本模型常常不支持图片 —— 比如 DeepSeek 的
+        <code>deepseek-chat</code> 只吃文本，识图必须填 <code>deepseek-flash</code>。
+        留空则自动推断（DeepSeek 用 deepseek-flash，其余沿用上面的模型）。
       </div>
 
       <div>

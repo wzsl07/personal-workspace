@@ -1,10 +1,14 @@
 import type { Attachment, SourceKind } from '../domain/types';
 import { loadConfig } from './ai';
+import { cloudVisionStatus, ocrViaCloud, resolveVisionModel } from './ai/vision';
 import { DEFAULT_OCR, ocrImage, type OcrConfig } from './ocr';
 
 /**
  * 文本抽取：把 PDF / Word / 图片 / 纯文本 变成可搜索、可交给 AI 的纯文本。
- * 所有抽取都在本机完成，不上传任何文件。
+ *
+ * PDF / Word / 纯文本一律在本机完成，不上传任何文件。
+ * 图片有两条路：云端视觉模型（快而准，但图片会离开本机）与本地 tesseract
+ * （离线、隐私，但手机上慢）。默认云端优先、失败自动退回本地。
  */
 
 const OCR_CFG_KEY = 'ocr:config';
@@ -76,7 +80,8 @@ async function extractDocx(blob: Blob): Promise<string> {
 
 export interface ExtractResult {
   text: string;
-  method: 'pdf' | 'docx' | 'plain' | 'ocr' | 'none';
+  /** ocr = 本地 tesseract，ocr-cloud = 云端视觉模型 */
+  method: 'pdf' | 'docx' | 'plain' | 'ocr' | 'ocr-cloud' | 'none';
   error?: string;
 }
 
@@ -99,9 +104,46 @@ export async function extractText(
       if (!cfg.enabled) {
         return { text: '', method: 'none', error: '图片需要 OCR，当前未启用（设置 → 附件与 OCR）' };
       }
-      onProgress?.('正在识别图片文字…');
-      const text = await ocrImage(blob, cfg);
-      return { text, method: 'ocr' };
+      const mode = cfg.mode ?? 'auto';
+      const ai = await loadConfig();
+
+      /* ---- 先试云端（auto / cloud） ---- */
+      let cloudErr = '';
+      if (mode !== 'local') {
+        const why = cloudVisionStatus(ai);
+        if (why && mode === 'cloud') {
+          return { text: '', method: 'none', error: `云端识别不可用：${why}（设置 → AI 解析）` };
+        }
+        if (!why) {
+          try {
+            const r = await ocrViaCloud(blob, ai, { onProgress, timeoutMs: 45_000 });
+            return { text: r.text, method: 'ocr-cloud' };
+          } catch (e) {
+            cloudErr = e instanceof Error ? e.message : String(e);
+            if (mode === 'cloud') return { text: '', method: 'none', error: cloudErr };
+            onProgress?.('云端没成功，改用本机识别…');
+          }
+        } else {
+          cloudErr = why;
+        }
+      }
+
+      /* ---- 再走本地 ---- */
+      try {
+        onProgress?.('正在本机识别图片文字…');
+        const text = await ocrImage(blob, cfg, {
+          onProgress: (p) => onProgress?.(p.status ? `本机识别：${p.status}` : '正在本机识别图片文字…'),
+          timeoutMs: 120_000,
+        });
+        return { text, method: 'ocr' };
+      } catch (e) {
+        const localErr = e instanceof Error ? e.message : String(e);
+        return {
+          text: '',
+          method: 'none',
+          error: cloudErr ? `云端：${cloudErr}\n本机：${localErr}` : localErr,
+        };
+      }
     }
     return { text: await extractPlain(blob), method: 'plain' };
   } catch (e) {
@@ -114,4 +156,28 @@ export async function needsAIVision(a: Attachment): Promise<boolean> {
   void a;
   const cfg = await loadConfig();
   return cfg.allowCloud;
+}
+
+/**
+ * 图片当前会走哪条路（给界面显示用）。
+ * 返回的是**意图**，实际是否成功要看运行时。
+ */
+export async function ocrRoute(): Promise<{
+  mode: OcrConfig['mode'];
+  route: 'cloud' | 'local' | 'none';
+  detail: string;
+}> {
+  const cfg = await loadOcrConfig();
+  if (!cfg.enabled) return { mode: cfg.mode ?? 'auto', route: 'none', detail: '图片 OCR 未启用' };
+  const mode = cfg.mode ?? 'auto';
+  if (mode !== 'local') {
+    const ai = await loadConfig();
+    const why = cloudVisionStatus(ai);
+    if (!why) {
+      return { mode, route: 'cloud', detail: `云端视觉模型（${resolveVisionModel(ai)}）` };
+    }
+    if (mode === 'cloud') return { mode, route: 'none', detail: `云端不可用：${why}` };
+    return { mode, route: 'local', detail: `云端不可用（${why}），将退回本机` };
+  }
+  return { mode, route: 'local', detail: '本机 tesseract（不联网）' };
 }

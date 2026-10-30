@@ -12,7 +12,7 @@
 
 import { cloudBlockReason, cloudReady, loadConfig } from './adapters/ai';
 import { checkModelDetailed, modelReady } from './adapters/embed';
-import { loadOcrConfig } from './adapters/extract';
+import { loadOcrConfig, ocrRoute } from './adapters/extract';
 import { langReady } from './adapters/ocr';
 import { loadSyncConfig, loadSyncSecret } from './adapters/sync';
 import { getMeta } from './repo/db';
@@ -168,14 +168,24 @@ export async function checkCapabilities(): Promise<CapState[]> {
         optional: true,
       });
     } else {
-      const ready = await langReady(cfg).catch(() => false);
+      const mode = cfg.mode ?? 'auto';
+      const route = await ocrRoute().catch(() => null);
+      const ready = route?.route === 'cloud' || (await langReady(cfg).catch(() => false));
+      let detail: string;
+      if (route?.route === 'cloud') {
+        detail = `已开启：走云端视觉模型（${route.detail}），失败会自动退回本机。`;
+      } else if (route?.route === 'local') {
+        detail = `已开启：走本机识别${mode === 'local' ? '（你指定了只用本机）' : `（${route.detail}）`}。`;
+      } else if (mode === 'cloud') {
+        detail = `已开启，但云端不可用：${route?.detail ?? '未知原因'}。检查「AI 解析」里的地址与 Key。`;
+      } else {
+        detail = `已开启（${mode}），但没找到语言包（${cfg.lang}），两条路都走不通。检查语言包路径或云端配置。`;
+      }
       out.push({
         id: 'ocr',
         label: CAP_LABELS.ocr,
         ok: ready,
-        detail: ready
-          ? '已开启，语言包就位。'
-          : `已开启，但没找到语言包（${cfg.lang}）。检查设置里的语言包路径。`,
+        detail,
         fixTo: ready ? undefined : '#ocr',
         fixLabel: ready ? undefined : '去设置',
         optional: true,
