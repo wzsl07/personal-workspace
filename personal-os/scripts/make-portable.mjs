@@ -78,7 +78,24 @@ try {
   console.log('[便携版] 旧目录删不掉（可能是安全删除策略），改为直接覆盖');
 }
 mkdirSync(staging, { recursive: true });
-copyFileSync(src, join(staging, '个人工作台.exe'));
+
+/**
+ * 复制 exe。
+ * 杀毒软件扫描刚构建的 exe 时会短暂锁住它，Node 的 copyFileSync 直接抛 EBUSY。
+ * 这不是脚本的错，等一下用系统命令重试即可 —— 系统 copy 不受这套锁的影响。
+ */
+const dstExe = join(staging, '个人工作台.exe');
+try {
+  copyFileSync(src, dstExe);
+} catch (e) {
+  console.log(`[便携版] 直接复制失败（${e?.code ?? e}），稍后用系统 copy 重试`);
+  execFileSync('cmd', ['/c', 'ping', '-n', '4', '127.0.0.1', '>nul'], { stdio: 'pipe' }); // 等约 3 秒
+  execFileSync('cmd', ['/c', 'copy', '/Y', src, dstExe], { stdio: 'pipe' });
+}
+if (!existsSync(dstExe)) {
+  console.error('[便携版] exe 没复制成功，终止。');
+  process.exit(1);
+}
 
 writeFileSync(
   join(staging, '怎么用.txt'),

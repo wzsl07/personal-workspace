@@ -246,6 +246,8 @@ function SourceRow({
   onDone: () => void;
   onDelete: () => void;
 }) {
+  /** 附件抽取失败的原因（PDF 坏文件、缺 OCR 语言包…），显示出来比"没能抽出来"有用 */
+  const extractError = (attachment?.extra as { extractError?: string } | undefined)?.extractError;
   return (
     <div className="p-3">
       {attachment && attachment.extractedText && (
@@ -262,6 +264,12 @@ function SourceRow({
       <div className="text-sm whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
         {plain || source.url || '（这段文字没能自动抽出来，可手动补充后解析）'}
       </div>
+      {!plain && !source.url && extractError && (
+        <div className="mt-1.5 rounded border border-line bg-panel px-2 py-1 text-[11px] leading-5 text-fg-muted">
+          <b>为什么没抽出来：</b>
+          {extractError}
+        </div>
+      )}
       <div className="flex items-center gap-2 mt-2">
         <span className="text-[11px] text-fg-dim">
           {new Date(source.capturedAt).toLocaleString('zh-CN', {

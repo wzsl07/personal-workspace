@@ -115,11 +115,13 @@ npm run dev          # 开发服务器 http://127.0.0.1:5173
 npm run model:setup  # 下载中文向量模型到 public/models/（国内镜像优先，自动回退官方源）
 ```
 
-要用图片 OCR 才需要（可选，语言包约 15~25MB）：
+要用图片 OCR 才需要（可选，共约 14MB）：
 
 ```bash
-npm run ocr:setup    # 再把 chi_sim.traineddata 放进 public/ocr/
+npm run ocr:setup    # 复制 worker/wasm，并下载 chi_sim、eng 语言包（约 6.6MB）到 public/ocr/
 ```
+
+跑完后到「设置 → 附件与 OCR」勾上启用即可。缺语言包时识别会直接说明缺哪个文件，不会偷偷联网下载。
 
 构建：
 
@@ -388,7 +390,9 @@ DIST_AUTHOR_USER=你的用户名 DIST_AUTHOR_GITHUB=你的GitHub名 npm run dist
 3. **附件二进制不同步**，只同步元数据和抽取出的文字。
 4. **手机端没有语义搜索**（22MB 模型跑不动），只有全文搜索。
 5. PDF 抽取最多 50 页；扫描版 PDF（整页是图片）抽不出文字，需要开 OCR。
-6. 老式 `.doc` 不支持，请先另存为 `.docx`；OCR 默认关闭（语言包大）。
+6. 老式 `.doc` 不支持，请先另存为 `.docx`；OCR 默认关闭（要多带 14MB 资源）。
+   识别用的是 tessdata_fast 语言包，正常字号的中英文很准，
+   小于 12px 的界面小字容易串行。
 7. 重复规则只做基础版：每天 / 每周（可选周几），**未做**单双周与教学周次。
 8. 浏览器直连 DeepSeek 可能被 CORS 拦截 —— 改用「自定义 API」指向自己的代理，
    或用桌面版（Tauri 无此限制）。Ollama 需设 `OLLAMA_ORIGINS=*`。
