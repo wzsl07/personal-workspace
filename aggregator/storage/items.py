@@ -107,6 +107,17 @@ def list_items(
     return conn.execute(sql, args).fetchall()
 
 
+def get_item(conn: sqlite3.Connection, item_id: int) -> sqlite3.Row | None:
+    """按 id 取一条条目（界面上点开某条时用）。"""
+    r = conn.execute(
+        """SELECT i.*, s.name AS source_name, s.fetch_policy AS fetch_policy
+           FROM items i JOIN sources s ON s.id = i.source_id
+           WHERE i.id = ?""",
+        (item_id,),
+    ).fetchone()
+    return r
+
+
 def count_items(conn: sqlite3.Connection, source_id: int | None = None) -> int:
     if source_id:
         return conn.execute(

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Icon } from '../../ui/Icon';
 import { isTauri, openPath, saveTextFile } from '../../core/adapters/desktop';
+import { cloudBlockReason, cloudReady, loadConfig } from '../../core/adapters/ai';
+import { chatText } from '../../core/adapters/ai/openaiCompat';
 
 /**
  * 信息流：读取本机的「信息聚合」服务（Python，默认 http://127.0.0.1:8787）。
@@ -116,6 +118,10 @@ export function AggregatorView() {
   const [newPreview, setNewPreview] = useState<{ title: string }[]>([]);
   const [opmlText, setOpmlText] = useState('');
 
+  /** 展开的条目 id 与它的 AI 摘要 */
+  const [summaryFor, setSummaryFor] = useState<number | null>(null);
+  const [summaryText, setSummaryText] = useState('');
+
   const api = useCallback(
     async (path: string, init?: RequestInit) => {
       const res = await fetch(`${base}${path}`, init);
@@ -173,6 +179,51 @@ export function AggregatorView() {
   }, [online, loadItems]);
 
   const curSource = sources.find((s) => s.id === cur) ?? null;
+
+  /* ---------------- 条目的 AI 摘要与打开原文 ---------------- */
+
+  /** 打开原文：WebView 里 target=_blank 点了没反应，必须走系统默认浏览器 */
+  async function openArticle(url: string) {
+    if (!url) return;
+    const ok = await openPath(url);
+    if (!ok) setMsg(`没能自动打开浏览器，请手动复制这个地址：${url}`);
+  }
+
+  async function summarize(item: AggItem) {
+    setSummaryFor(item.id);
+    setSummaryText('正在生成…');
+    try {
+      const cfg = await loadConfig();
+      if (!cloudReady(cfg)) {
+        setSummaryText(`AI 不可用：${cloudBlockReason(cfg)}（到「设置 → AI 解析」里配置）`);
+        return;
+      }
+      // 先尽量拿到正文：聚合服务那边取，不受浏览器跨域限制
+      let body = `标题：${item.title}\n`;
+      if (item.summary) body += `已有摘要：${item.summary}\n`;
+      try {
+        const a = await api(`/api/items/${item.id}/article`, { method: 'POST' });
+        if (a?.ok && a.text) {
+          body += `\n正文：\n${a.text}`;
+        } else if (a?.error) {
+          body += `\n（取不到正文：${a.error}）`;
+        }
+      } catch {
+        /* 取不到正文就用标题+摘要，不阻断 */
+      }
+      setSummaryText('正在让 AI 阅读…');
+      const out = await chatText(
+        cfg,
+        '你是给大学生看的通知助手。用中文写，不超过 120 字，只讲这条通知讲了什么、' +
+          '谁要注意、有没有截止时间。不要复述原文，不要加客套话。如果信息不足够，' +
+          '就基于已有内容给出最合理的概括，不要编造具体日期和数字。',
+        body,
+      );
+      setSummaryText(out || 'AI 没返回内容');
+    } catch (e) {
+      setSummaryText(`生成失败：${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
 
   /* ---------------- 条目状态 ---------------- */
 
@@ -786,23 +837,63 @@ export function AggregatorView() {
         <div className="space-y-3">
           {items.map((it) => (
             <div key={it.id} className="border-b border-line pb-3">
-              <a
-                href={it.url || undefined}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`text-[13px] ${it.read_at ? 'text-fg-muted' : 'text-fg font-medium'}`}
-                onClick={() => void setState(it, { read: true })}
+              {/*
+                标题不再做成 <a target="_blank">：Tauri 的 WebView 点了没反应。
+                改成就地展开——点开就生成 AI 摘要，想看完整内容再点「打开原文」。
+              */}
+              <button
+                className={`text-[13px] text-left w-full ${
+                  it.read_at ? 'text-fg-muted' : 'text-fg font-medium'
+                }`}
+                onClick={() => {
+                  if (summaryFor === it.id) {
+                    setSummaryFor(null);
+                    setSummaryText('');
+                  } else {
+                    void setState(it, { read: true });
+                    void summarize(it);
+                  }
+                }}
               >
                 {it.title}
-              </a>
+              </button>
               <div className="text-[11px] text-fg-dim mt-0.5">
                 <span className="chip mr-1">{it.source_name}</span>
                 {it.section && <span className="chip mr-1">{it.section}</span>}
                 {(it.published_at || it.discovered_at).slice(0, 16).replace('T', ' ')}
               </div>
-              {it.summary && (
+              {it.summary && summaryFor !== it.id && (
                 <div className="text-[12px] text-fg-muted mt-1 line-clamp-2">{it.summary}</div>
               )}
+
+              {summaryFor === it.id && (
+                <div className="mt-2 rounded border border-line bg-bg-elev p-2">
+                  <div className="text-[11px] text-fg-dim mb-1">AI 摘要</div>
+                  <div className="text-[12px] leading-6 whitespace-pre-wrap">
+                    {summaryText || '（空）'}
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    {it.url && (
+                      <button className="btn text-[11px]" onClick={() => void openArticle(it.url)}>
+                        打开原文 <Icon name="ExternalLink" size={11} />
+                      </button>
+                    )}
+                    <button className="btn btn-ghost text-[11px]" onClick={() => void summarize(it)}>
+                      重新生成
+                    </button>
+                    <button
+                      className="btn btn-ghost text-[11px]"
+                      onClick={() => {
+                        setSummaryFor(null);
+                        setSummaryText('');
+                      }}
+                    >
+                      收起
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-2 mt-1">
                 <button
                   className="btn btn-ghost text-[11px]"
@@ -816,6 +907,14 @@ export function AggregatorView() {
                 >
                   {it.read_at ? '标为未读' : '标为已读'}
                 </button>
+                {it.url && (
+                  <button
+                    className="btn btn-ghost text-[11px]"
+                    onClick={() => void openArticle(it.url)}
+                  >
+                    打开原文
+                  </button>
+                )}
               </div>
             </div>
           ))}

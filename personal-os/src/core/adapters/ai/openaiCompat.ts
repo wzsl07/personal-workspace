@@ -130,6 +130,56 @@ export async function chatJSON(cfg: AIConfig, system: string, user: string): Pro
   return extractJSON(content);
 }
 
+/**
+ * 通用纯文本对话：给一段 system + user，拿回一段文字。
+ *
+ * 与 chatJSON 的区别是**不传 response_format**：
+ * 有些模型开了结构化输出后会拒绝某些内容，或者把话缩得很短；
+ * 摘要、润色这类"给我一段话"的场景用这个更稳。
+ */
+export async function chatText(
+  cfg: AIConfig,
+  system: string,
+  user: string,
+  maxTokens = 800,
+): Promise<string> {
+  if (!cfg.baseURL) {
+    throw new Error('接口地址是空的，请到「设置 → AI 解析」里填写');
+  }
+  const res = await fetch(`${cfg.baseURL.replace(/\/$/, '')}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${cfg.apiKey || 'local'}`,
+    },
+    body: JSON.stringify({
+      model: cfg.model,
+      temperature: 0.2,
+      max_tokens: maxTokens,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(`接口鉴权失败（${res.status}），检查 API Key 是否正确`);
+    }
+    if (res.status === 404) {
+      throw new Error('接口地址不对（404），检查是否少了 /v1 或写错了域名');
+    }
+    throw new Error(`接口返回 ${res.status} ${res.statusText ?? ''}`.trim());
+  }
+  const ctype = res.headers.get('content-type') ?? '';
+  if (!ctype.includes('json')) {
+    const snippet = (await res.text()).slice(0, 80).replace(/\s+/g, ' ');
+    throw new Error(`接口返回的不是 JSON（${ctype || '未知类型'}），八成是接口地址填错了：${snippet}`);
+  }
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  return (data.choices?.[0]?.message?.content ?? '').trim();
+}
+
 export function createOpenAICompat(
   id: AIProviderId,
   label: string,

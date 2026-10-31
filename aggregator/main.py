@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import threading
@@ -31,7 +32,7 @@ from fastapi.responses import HTMLResponse, Response  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware    # noqa: E402
 from pydantic import BaseModel, Field              # noqa: E402
 
-from adapters.http_fetch import fetch              # noqa: E402
+from adapters.http_fetch import DEFAULT_UA, fetch  # noqa: E402
 from core import detect as detect_mod              # noqa: E402
 from core import health                            # noqa: E402
 from core import security                          # noqa: E402
@@ -421,6 +422,118 @@ def list_items(
         ]
     finally:
         conn.close()
+
+
+@app.post("/api/items/{item_id}/article")
+def item_article(item_id: int):
+    """按需取一篇公告的正文，用于生成摘要。
+
+    为什么是"按需"而不是抓取时就存全文：
+    - 合规：默认只存标题+摘要+链接，全文不落库（界面上仍保留「查看原文」入口）；
+    - 省空间：绝大多数条目你根本不会点开，预先全抓下来是浪费。
+
+    所以这里只在用户真的点开某一条时才去取，用完即弃，不写入数据库。
+    """
+    conn = db_store.connect()
+    try:
+        row = items_store.get_item(conn, item_id)
+        if not row:
+            raise HTTPException(404, "没有这个条目")
+        url = row["url"]
+        if not url:
+            return {"ok": False, "error": "这个条目没有链接"}
+
+        policy = json.loads(row["fetch_policy"] or "{}") if row["fetch_policy"] else {}
+        respect = not bool(policy.get("ignore_robots"))
+        resp = fetch(url, user_agent=policy.get("user_agent") or DEFAULT_UA, respect_robots=respect)
+
+        if resp.error_kind == "unsafe":
+            return {"ok": False, "error": resp.error_message}
+        if resp.error_kind == "robots":
+            return {"ok": False, "error": resp.error_message}
+        if not resp.ok:
+            return {"ok": False, "error": resp.error_message or f"HTTP {resp.status}"}
+
+        text = _extract_main_text(resp.text)
+        return {
+            "ok": True,
+            "url": resp.final_url or url,
+            "title": row["title"],
+            "text": text[:6000],
+            "chars": len(text),
+            "truncated": len(text) > 6000,
+        }
+    finally:
+        conn.close()
+
+
+def _extract_main_text(html_doc: str) -> str:
+    """从网页里取出正文。
+
+    不做复杂的正文识别算法 —— 目标只是"够 AI 读懂讲了什么"，
+    去掉导航/页脚/脚本后取最长的一段文字通常就够了。
+    """
+    try:
+        from parsel import Selector
+
+        sel = Selector(html_doc)
+        # 只删真正没用的标签。**不要删 form / nav / footer 这类容器** ——
+        # 很多高校站（尤其 ASP.NET / DNN 建的）把整篇正文包在 <form> 里，
+        # 一删就只剩个页眉。判断"是不是导航"交给下面的链接密度评分去做。
+        for bad in ("script", "style", "noscript"):
+            for el in sel.css(bad):
+                try:
+                    el.root.getparent().remove(el.root)
+                except Exception:
+                    pass
+
+        # 正文候选。评分而不是"取第一个够长的"：
+        # 外层容器往往更大但全是导航链接，光比长度会选中它。
+        candidates = (
+            "article",
+            "main",
+            "[class*=content]",
+            "[class*=article]",
+            "[class*=detail]",
+            "[id*=content]",
+            "[id*=article]",
+            "td",
+        )
+        best, best_score = "", 0.0
+        for sel_name in candidates:
+            for node in sel.css(sel_name)[:8]:
+                t = _node_text(node)
+                if len(t) < 80:
+                    continue
+                links = node.css("a")
+                # 链接里的文字占比越高，越像导航/列表页而不是正文
+                link_chars = sum(len(_node_text(a)) for a in links)
+                score = len(t) - link_chars * 1.6 - len(links) * 15
+                if score > best_score:
+                    best, best_score = t, score
+        if not best and sel.css("body"):
+            best = _node_text(sel.css("body")[0])
+        return best.strip()
+    except Exception:
+        return strip_html_regex(html_doc)
+
+
+def _node_text(node) -> str:
+    import re as _re
+
+    try:
+        txt = node.root.text_content()
+    except Exception:
+        txt = ""
+    return _re.sub(r"\s+", " ", txt or "").strip()
+
+
+def strip_html_regex(s: str) -> str:
+    import re as _re
+
+    s = _re.sub(r"<(script|style)[^>]*>.*?</\1>", "", s, flags=_re.I | _re.S)
+    s = _re.sub(r"<[^>]+>", " ", s)
+    return _re.sub(r"\s+", " ", s).strip()
 
 
 class StateIn(BaseModel):
