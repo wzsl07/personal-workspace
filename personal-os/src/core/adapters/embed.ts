@@ -41,10 +41,18 @@ export function modelReady(): boolean {
 /**
  * 探测本地模型文件是否存在（不发网络请求到外部）。
  *
- * 注意：不能只看 res.ok —— Vite / Tauri 对不存在的路径会走 SPA 兜底，
- * 返回 200 + 一张 index.html，光看状态码会误判成"文件在"，
- * 然后在解析模型时抛出 "Unexpected token '<' ... is not valid JSON"。
- * 所以这里同时校验 content-type 和体积。
+ * 两个坑：
+ * 1. 不能只看 res.ok —— Vite / Tauri 对不存在的路径会走 SPA 兜底，
+ *    返回 200 + 一张 index.html，光看状态码会误判成"文件在"，
+ *    然后在解析模型时抛出 "Unexpected token '<' ... is not valid JSON"。
+ * 2. **不能看 content-type** —— Tauri 的内嵌资源服务（tauri:// / http://tauri.localhost）
+ *    对认不出的扩展名一律把 Content-Type 回退成 text/html（tauri-utils 的 MimeType::parse：
+ *    infer 认不出就按扩展名猜，猜不到就 fallback 到 Html）。.onnx 正好是"认不出"的那一类，
+ *    于是 24MB 的模型被标成 text/html，按 content-type 判断会误判成"模型没装"。
+ *    .js / .json / .wasm 都认得出，所以以前只有模型这一个文件被冤枉。
+ *
+ * 结论：**只看魔术字节**。SPA 兜底页开头一定是 '<'（0x3C），
+ * 真正的 onnx 是二进制 protobuf（首字节 0x08），js/json 也不会以 '<' 开头。
  */
 async function probeFile(url: string): Promise<boolean> {
   try {
@@ -54,13 +62,13 @@ async function probeFile(url: string): Promise<boolean> {
     const res = await fetch(url, { headers: { Range: 'bytes=0-63' } });
     if (!res.ok && res.status !== 206) return false;
 
-    const ctype = (res.headers.get('content-type') ?? '').toLowerCase();
-    if (ctype.includes('html')) return false; // SPA 兜底页面
-
     const buf = new Uint8Array(await res.arrayBuffer());
     if (buf.length === 0) return false;
-    // HTML 兜底页以 '<'（0x3C）开头；真正的 onnx 是二进制 protobuf
-    if (buf[0] === 0x3c) return false;
+
+    // 跳过 UTF-8 BOM（EF BB BF）
+    const i = buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf ? 3 : 0;
+    // HTML 兜底页以 '<'（0x3C）开头；真正的模型文件不会
+    if (buf[i] === 0x3c) return false;
     return true;
   } catch {
     return false;
