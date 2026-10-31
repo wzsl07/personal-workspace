@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import re
 from urllib.parse import urljoin, urlsplit
 
 from adapters.http_fetch import fetch
@@ -65,6 +66,11 @@ def detect(url: str) -> dict:
     parts = urlsplit(base)
     root = f"{parts.scheme}://{parts.netloc}"
 
+    # 网页标题：给来源当默认名（比一串网址好认）。
+    # 必须在任何 return 之前算出来，否则后面的分支拿不到。
+    html_text = decode_html(resp.body)
+    page_name = page_title(html_text)
+
     # ---- 0. 这个地址本身是不是 feed？（用户直接粘贴 feed 链接是最常见的情况）----
     for type_name in ("rss", "json"):
         items = _looks_like_feed(resp.body, type_name)
@@ -74,10 +80,9 @@ def detect(url: str) -> dict:
                 "result": f"解析出 {len(items)} 条",
             })
             return _ok(type_name, {"version": 1}, base, items, attempts,
-                       "这个地址本身就是 feed")
+                       "这个地址本身就是 feed", page_name)
 
     # ---- 1. RSS 自动发现 ----
-    html_text = decode_html(resp.body)
     import re
 
     for m in re.finditer(
@@ -98,7 +103,7 @@ def detect(url: str) -> dict:
                 attempts[-1]["result"] = f"HTTP {fr.status}，解析出 {len(items)} 条"
                 if items:
                     return _ok("rss", {"version": 1}, feed_url, items, attempts,
-                               "页面里声明的 feed 地址")
+                               "页面里声明的 feed 地址", page_name)
             else:
                 attempts[-1]["result"] = f"失败：{fr.error_message}"
         elif t in JSON_TYPES or "json" in t:
@@ -109,7 +114,8 @@ def detect(url: str) -> dict:
                 attempts[-1]["result"] = f"HTTP {fr.status}，解析出 {len(items)} 条"
                 if items:
                     return _ok("json", {"version": 1, "items_path": "$.items"},
-                               feed_url, items, attempts, "页面里声明的 JSON Feed")
+                               feed_url, items, attempts, "页面里声明的 JSON Feed",
+                               page_name)
             else:
                 attempts[-1]["result"] = f"失败：{fr.error_message}"
 
@@ -125,7 +131,8 @@ def detect(url: str) -> dict:
         attempts.append({"step": "常见 feed 路径", "url": cand,
                          "result": f"HTTP {fr.status}，解析出 {len(items)} 条"})
         if items:
-            return _ok("rss", {"version": 1}, cand, items, attempts, f"试到了 {p}")
+            return _ok("rss", {"version": 1}, cand, items, attempts, f"试到了 {p}",
+                       page_name)
 
     # ---- 3. JSON Feed 路径 ----
     for p in JSON_PATHS:
@@ -138,7 +145,7 @@ def detect(url: str) -> dict:
                          "result": f"HTTP {fr.status}，解析出 {len(items)} 条"})
         if items:
             return _ok("json", {"version": 1, "items_path": "$.items"}, cand, items,
-                       attempts, f"试到了 {p}")
+                       attempts, f"试到了 {p}", page_name)
 
     # ---- 4. 自动正文提取 ----
     attempts.append({"step": "自动正文提取", "url": base, "result": "分析页面结构…"})
@@ -152,6 +159,7 @@ def detect(url: str) -> dict:
             "ok": True,
             "type": "html",
             "url": base,
+            "title": page_name or _name_from_url(base),
             "parser_config": sug["parser_config"],
             "confidence": sug["confidence"],
             "preview": sug["preview"],
@@ -166,16 +174,36 @@ def detect(url: str) -> dict:
     }
 
 
-def _ok(type_name, config, url, items, attempts, note) -> dict:
+def _ok(type_name, config, url, items, attempts, note, suggested_name: str = "") -> dict:
     for it in items:
         pass
     return {
         "ok": True,
         "type": type_name,
         "url": url,
+        # 给界面当默认名用：网页标题比一串网址好认得多
+        "title": suggested_name or _name_from_url(url),
         "parser_config": config,
         "confidence": "high",
         "preview": items[:5],
         "attempts": attempts,
         "note": note,
     }
+
+
+def _name_from_url(url: str) -> str:
+    """网址兜底名：取域名，去掉 www. 前缀。"""
+    try:
+        host = urlsplit(url).netloc.lower()
+    except Exception:
+        return url
+    return host[4:] if host.startswith("www.") else host
+
+
+def page_title(html_text: str) -> str:
+    """取网页 <title>。取不到返回空字符串。"""
+    m = re.search(r"<title[^>]*>(.*?)</title>", html_text or "", re.I | re.S)
+    if not m:
+        return ""
+    t = re.sub(r"\s+", " ", m.group(1)).strip()
+    return t[:60]

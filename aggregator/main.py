@@ -455,11 +455,14 @@ def item_article(item_id: int):
             return {"ok": False, "error": resp.error_message or f"HTTP {resp.status}"}
 
         text = _extract_main_text(resp.text)
+        html = _extract_main_html(resp.text, resp.final_url or url)
         return {
             "ok": True,
             "url": resp.final_url or url,
             "title": row["title"],
             "text": text[:6000],
+            # 给界面直接渲染用的版本：白名单清洗过，且图片/链接已补成绝对地址
+            "html": html,
             "chars": len(text),
             "truncated": len(text) > 6000,
         }
@@ -474,46 +477,15 @@ def _extract_main_text(html_doc: str) -> str:
     去掉导航/页脚/脚本后取最长的一段文字通常就够了。
     """
     try:
+        node = _best_content_node(html_doc)
+        if node is not None:
+            return _node_text(node)
         from parsel import Selector
 
         sel = Selector(html_doc)
-        # 只删真正没用的标签。**不要删 form / nav / footer 这类容器** ——
-        # 很多高校站（尤其 ASP.NET / DNN 建的）把整篇正文包在 <form> 里，
-        # 一删就只剩个页眉。判断"是不是导航"交给下面的链接密度评分去做。
-        for bad in ("script", "style", "noscript"):
-            for el in sel.css(bad):
-                try:
-                    el.root.getparent().remove(el.root)
-                except Exception:
-                    pass
-
-        # 正文候选。评分而不是"取第一个够长的"：
-        # 外层容器往往更大但全是导航链接，光比长度会选中它。
-        candidates = (
-            "article",
-            "main",
-            "[class*=content]",
-            "[class*=article]",
-            "[class*=detail]",
-            "[id*=content]",
-            "[id*=article]",
-            "td",
-        )
-        best, best_score = "", 0.0
-        for sel_name in candidates:
-            for node in sel.css(sel_name)[:8]:
-                t = _node_text(node)
-                if len(t) < 80:
-                    continue
-                links = node.css("a")
-                # 链接里的文字占比越高，越像导航/列表页而不是正文
-                link_chars = sum(len(_node_text(a)) for a in links)
-                score = len(t) - link_chars * 1.6 - len(links) * 15
-                if score > best_score:
-                    best, best_score = t, score
-        if not best and sel.css("body"):
-            best = _node_text(sel.css("body")[0])
-        return best.strip()
+        if sel.css("body"):
+            return _node_text(sel.css("body")[0])
+        return ""
     except Exception:
         return strip_html_regex(html_doc)
 
@@ -526,6 +498,87 @@ def _node_text(node) -> str:
     except Exception:
         txt = ""
     return _re.sub(r"\s+", " ", txt or "").strip()
+
+
+def _best_content_node(html_doc: str):
+    """挑出最像正文的那个节点（与 _extract_main_text 用的是同一套评分）。"""
+    from parsel import Selector
+
+    sel = Selector(html_doc)
+    for bad in ("script", "style", "noscript"):
+        for el in sel.css(bad):
+            try:
+                el.root.getparent().remove(el.root)
+            except Exception:
+                pass
+
+    candidates = (
+        "article",
+        "main",
+        "[class*=content]",
+        "[class*=article]",
+        "[class*=detail]",
+        "[id*=content]",
+        "[id*=article]",
+        "td",
+    )
+    best, best_score = None, 0.0
+    for sel_name in candidates:
+        for node in sel.css(sel_name)[:8]:
+            t = _node_text(node)
+            if len(t) < 80:
+                continue
+            links = node.css("a")
+            link_chars = sum(len(_node_text(a)) for a in links)
+            score = len(t) - link_chars * 1.6 - len(links) * 15
+            if score > best_score:
+                best, best_score = node, score
+    return best
+
+
+def _extract_main_html(html_doc: str, base_url: str) -> str:
+    """取出正文的 HTML，清洗成可以安全渲染的样子。
+
+    两步都不能省：
+    1. 白名单清洗 —— 抓来的是别人的网页，等同于用户输入，必须过滤；
+    2. 相对地址补全 —— 图片/链接在原站是相对路径，搬到这里就全失效了。
+    """
+    from urllib.parse import urljoin
+
+    from normalizers.sanitize import sanitize_html
+
+    node = _best_content_node(html_doc)
+    if node is None:
+        return ""
+
+    try:
+        from lxml import html as lxml_html
+
+        inner = (node.root.text or "") + "".join(
+            lxml_html.tostring(c, encoding="unicode") for c in node.root.iterchildren()
+        )
+    except Exception:
+        return ""
+
+    cleaned = sanitize_html(inner)
+    return _absolutize(cleaned, base_url)
+
+
+def _absolutize(fragment: str, base_url: str) -> str:
+    """把清洗后的 HTML 里相对的图片/链接地址补成绝对地址。"""
+    from urllib.parse import urljoin
+
+    import re as _re
+
+    def _fix_src(m: "_re.Match[str]") -> str:
+        return f'src="{urljoin(base_url, m.group(1))}"'
+
+    def _fix_href(m: "_re.Match[str]") -> str:
+        return f'href="{urljoin(base_url, m.group(1))}"'
+
+    out = _re.sub(r'src="([^"]+)"', _fix_src, fragment)
+    out = _re.sub(r'href="([^"]+)"', _fix_href, out)
+    return out
 
 
 def strip_html_regex(s: str) -> str:

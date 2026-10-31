@@ -130,11 +130,25 @@ export function AggregatorView() {
   /** 展开的条目 id 与它的 AI 摘要 */
   const [summaryFor, setSummaryFor] = useState<number | null>(null);
   const [summaryText, setSummaryText] = useState('');
-  /** 打开原文失败时摆出来给人复制的地址 */
+  /** 打开网址失败时摆出来给人复制的地址 */
   const [openFail, setOpenFail] = useState('');
   /** 启动脚本路径（桌面端可以一键拉起服务，省得去资源管理器里找） */
   const [launcher, setLauncher] = useState(loadLauncher);
   const [starting, setStarting] = useState(false);
+
+  /** 重命名：正在改哪个来源、输入框内容 */
+  const [renameId, setRenameId] = useState<number | null>(null);
+  const [renameText, setRenameText] = useState('');
+
+  /** 右侧「显示原文」抽屉 */
+  const [reader, setReader] = useState<{
+    title: string;
+    url: string;
+    source: string;
+    html: string;
+    loading: boolean;
+    error: string;
+  } | null>(null);
 
   const api = useCallback(
     async (path: string, init?: RequestInit) => {
@@ -194,9 +208,9 @@ export function AggregatorView() {
 
   const curSource = sources.find((s) => s.id === cur) ?? null;
 
-  /* ---------------- 条目的 AI 摘要与打开原文 ---------------- */
+  /* ---------------- 条目的 AI 摘要与打开网址 ---------------- */
 
-  /** 打开原文：WebView 里 target=_blank 点了没反应，必须走系统默认浏览器 */
+  /** 打开网址：WebView 里 target=_blank 点了没反应，必须走系统默认浏览器 */
   async function openArticle(url: string) {
     if (!url) return;
     const ok = await openPath(url);
@@ -207,6 +221,34 @@ export function AggregatorView() {
       setMsg('没能自动打开浏览器，下面是完整地址，可以复制后粘贴到浏览器');
     } else {
       setOpenFail('');
+    }
+  }
+
+  /** 在工作台里直接看原文：正文由聚合服务抓取并清洗，前端只负责显示 */
+  async function showArticle(item: AggItem) {
+    setReader({
+      title: item.title,
+      url: item.url,
+      source: item.source_name,
+      html: '',
+      loading: true,
+      error: '',
+    });
+    try {
+      const a = await api(`/api/items/${item.id}/article`, { method: 'POST' });
+      if (!a?.ok) {
+        setReader((r) =>
+          r
+            ? { ...r, loading: false, error: a?.error || '取不到正文' }
+            : r,
+        );
+        return;
+      }
+      setReader((r) => (r ? { ...r, loading: false, html: a.html || '' } : r));
+    } catch (e) {
+      setReader((r) =>
+        r ? { ...r, loading: false, error: e instanceof Error ? e.message : String(e) } : r,
+      );
     }
   }
 
@@ -332,6 +374,7 @@ export function AggregatorView() {
   function openEdit(s: AggSource) {
     setCfgText(JSON.stringify(s.parser_config ?? { version: 1 }, null, 2));
     setTestOut('');
+    setRenameId(null);
     setPanel('edit');
   }
 
@@ -404,7 +447,8 @@ export function AggregatorView() {
       }
       setNewType(r.type);
       setNewCfg(JSON.stringify(r.parser_config ?? {}, null, 2));
-      setNewName(r.url || newUrl.trim());
+      // 服务端现在会返回网页标题，用它当默认名比一串网址好认
+      setNewName(r.title || r.url || newUrl.trim());
       setNewPreview(r.preview ?? []);
       setMsg(`识别为 ${r.type}，确认后点保存`);
     } catch {
@@ -490,6 +534,45 @@ export function AggregatorView() {
   async function openManage() {
     const ok = await openPath(base);
     if (!ok) setMsg(`没能自动打开浏览器，请手动访问：${base}`);
+  }
+
+  /** 给来源改个好认的名字 */
+  async function renameSource(id: number, name: string) {
+    const v = name.trim();
+    if (!v) return;
+    try {
+      await api(`/api/sources/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: v }),
+      });
+      setRenameId(null);
+      setRenameText('');
+      setMsg('已重命名');
+      await loadSources();
+    } catch {
+      setMsg('重命名失败');
+    }
+  }
+
+  /** 名字还是一串网址的来源：抓一下网页标题来命名 */
+  async function autoName(s: AggSource) {
+    setMsg('正在取网页标题…');
+    try {
+      const r = await api('/api/detect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: s.url }),
+      });
+      const t = (r?.title || '').trim();
+      if (!t) {
+        setMsg('没取到标题，可以手动重命名');
+        return;
+      }
+      await renameSource(s.id, t);
+    } catch {
+      setMsg('取标题失败，可以手动重命名');
+    }
   }
 
   /** 没填过启动脚本位置时，让 Rust 在常见目录里找一次 */
@@ -619,7 +702,7 @@ export function AggregatorView() {
   }
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full relative">
       {/* 左：来源列表，点一下主界面就切成它的内容 */}
       <div className="w-64 shrink-0 border-r border-line overflow-y-auto p-3 space-y-2">
         <button
@@ -778,6 +861,20 @@ export function AggregatorView() {
               <button className="btn text-xs" onClick={() => void openRuns(curSource.id)}>
                 <Icon name="FileText" size={13} /> 日志
               </button>
+              <button
+                className="btn text-xs"
+                onClick={() => {
+                  setRenameId(curSource.id);
+                  setRenameText(curSource.name);
+                }}
+              >
+                重命名
+              </button>
+              {/^https?:\/\//i.test(curSource.name) && (
+                <button className="btn text-xs btn-ghost" onClick={() => void autoName(curSource)}>
+                  用网页标题命名
+                </button>
+              )}
               {curSource.isolated && (
                 <button className="btn text-xs" onClick={() => void retry(curSource.id)}>
                   <Icon name="RefreshCw" size={13} /> 重试（解除暂停）
@@ -787,6 +884,40 @@ export function AggregatorView() {
                 <Icon name="Trash2" size={13} /> 删除
               </button>
             </div>
+
+            {/* 重命名 */}
+            {renameId === curSource.id && (
+              <div className="mt-3 border-t border-line pt-3">
+                <div className="text-[11px] text-fg-dim mb-1">
+                  给这个来源起个好认的名字（侧边栏里显示的就是它）
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    className="field flex-1"
+                    value={renameText}
+                    onChange={(e) => setRenameText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') void renameSource(curSource.id, renameText);
+                    }}
+                  />
+                  <button
+                    className="btn text-xs btn-primary"
+                    onClick={() => void renameSource(curSource.id, renameText)}
+                  >
+                    保存
+                  </button>
+                  <button
+                    className="btn text-xs btn-ghost"
+                    onClick={() => {
+                      setRenameId(null);
+                      setRenameText('');
+                    }}
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* 编辑规则 */}
             {panel === 'edit' && (
@@ -962,7 +1093,7 @@ export function AggregatorView() {
             <div key={it.id} className="border-b border-line pb-3">
               {/*
                 标题不再做成 <a target="_blank">：Tauri 的 WebView 点了没反应。
-                改成就地展开——点开就生成 AI 摘要，想看完整内容再点「打开原文」。
+                改成就地展开——点开就生成 AI 摘要，想看完整内容再点「打开网址」。
               */}
               <button
                 className={`text-[13px] text-left w-full ${
@@ -998,7 +1129,7 @@ export function AggregatorView() {
                   <div className="flex gap-2 mt-2">
                     {it.url && (
                       <button className="btn text-[11px]" onClick={() => void openArticle(it.url)}>
-                        打开原文 <Icon name="ExternalLink" size={11} />
+                        打开网址 <Icon name="ExternalLink" size={11} />
                       </button>
                     )}
                     <button className="btn btn-ghost text-[11px]" onClick={() => void summarize(it)}>
@@ -1030,12 +1161,18 @@ export function AggregatorView() {
                 >
                   {it.read_at ? '标为未读' : '标为已读'}
                 </button>
+                <button
+                  className="btn btn-ghost text-[11px]"
+                  onClick={() => void showArticle(it)}
+                >
+                  显示原文
+                </button>
                 {it.url && (
                   <button
                     className="btn btn-ghost text-[11px]"
                     onClick={() => void openArticle(it.url)}
                   >
-                    打开原文
+                    打开网址
                   </button>
                 )}
               </div>
@@ -1045,6 +1182,82 @@ export function AggregatorView() {
             <div className="text-[12px] text-fg-dim">没有符合条件的条目。</div>
           )}
         </div>
+
+        {/* ---------- 右侧抽屉：在工作台里直接看原文 ---------- */}
+        {reader && (
+          <>
+            <div
+              className="absolute inset-0 bg-black/20"
+              onClick={() => setReader(null)}
+              aria-hidden
+            />
+            <div className="absolute inset-y-0 right-0 w-full max-w-[560px] flex flex-col border-l border-line bg-panel shadow-lg">
+              {/* 正文是从别的网站抓来的，只给最基本的排版，避免原站样式污染界面 */}
+              <style>{`
+                .prose-article p{margin:6px 0}
+                .prose-article img{max-width:100%;height:auto;margin:8px 0}
+                .prose-article a{text-decoration:underline}
+                .prose-article table{max-width:100%}
+              `}</style>
+              <div className="flex items-start gap-2 p-3 border-b border-line">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-medium leading-5">{reader.title}</div>
+                  <div className="text-[11px] text-fg-dim mt-0.5">{reader.source}</div>
+                </div>
+                <button className="btn btn-ghost text-[11px]" onClick={() => setReader(null)}>
+                  关闭
+                </button>
+              </div>
+
+              <div className="flex gap-2 px-3 py-2 border-b border-line">
+                {reader.url && (
+                  <button className="btn text-[11px]" onClick={() => void openArticle(reader.url)}>
+                    打开网址 <Icon name="ExternalLink" size={11} />
+                  </button>
+                )}
+                {reader.url && (
+                  <button className="btn btn-ghost text-[11px]" onClick={() => void copyText(reader.url)}>
+                    复制链接
+                  </button>
+                )}
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4">
+                {reader.loading && <div className="text-[12px] text-fg-dim">正在取正文…</div>}
+                {reader.error && (
+                  <div className="text-[12px]">
+                    <div className="text-red-500 mb-1">取不到正文</div>
+                    <div className="text-fg-muted">{reader.error}</div>
+                    <div className="text-fg-dim mt-2">
+                      有些内容（比如 PDF）抓不出文字，用「打开网址」看原页面。
+                    </div>
+                  </div>
+                )}
+                {!reader.loading && !reader.error && reader.html && (
+                  /*
+                    这里的 HTML 来自聚合服务，服务端已做过白名单清洗
+                    （去掉脚本、事件属性、危险协议），所以可以安全地直接渲染。
+                    链接的点击走 openArticle —— WebView 里普通跳转不生效。
+                  */
+                  <div
+                    className="text-[13px] leading-7 prose-article"
+                    onClick={(e) => {
+                      const a = (e.target as HTMLElement).closest('a');
+                      if (a && a.getAttribute('href')) {
+                        e.preventDefault();
+                        void openArticle(a.getAttribute('href') as string);
+                      }
+                    }}
+                    dangerouslySetInnerHTML={{ __html: reader.html }}
+                  />
+                )}
+                {!reader.loading && !reader.error && !reader.html && (
+                  <div className="text-[12px] text-fg-dim">这篇没有可显示的正文内容。</div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
