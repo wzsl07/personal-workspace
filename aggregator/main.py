@@ -32,8 +32,11 @@ from pydantic import BaseModel, Field              # noqa: E402
 
 from adapters.http_fetch import fetch              # noqa: E402
 from core import detect as detect_mod              # noqa: E402
+from core import health                            # noqa: E402
+from core import security                          # noqa: E402
 from core.pipeline import run_source_once           # noqa: E402
 from core.scheduler import Scheduler                # noqa: E402
+from normalizers.sanitize import sanitize_html     # noqa: E402
 from normalizers.time import LOCAL_TZ               # noqa: E402
 from storage import db as db_store                  # noqa: E402
 from storage import items as items_store            # noqa: E402
@@ -68,6 +71,11 @@ def source_payload(conn, s) -> dict:
         "interval_sec": s.interval_sec,
         "tags": s.tags,
         "health": s.health_status,
+        "health_text": health.describe(
+            s.health_status, fail_streak=s.fail_streak, idle_streak=s.idle_streak
+        ),
+        "isolated": bool(s.fail_streak >= health.ISOLATE_AFTER),
+        "idle_streak": s.idle_streak,
         "fail_streak": s.fail_streak,
         "last_fetched_at": s.last_fetched_at,
         "last_success_at": s.last_success_at,
@@ -128,6 +136,12 @@ class SourceIn(BaseModel):
 @app.post("/api/sources")
 def create_source(body: SourceIn):
     """新增来源。不传 type 时先自动探测（界面上的"粘贴网址 → 探测 → 保存"流程）。"""
+    # 保存时就挡住内网地址：与其让它存进去、每次抓取都失败一次，
+    # 不如在用户点"保存"的那一刻就说清楚为什么不行。
+    safe, why = security.is_safe_url(body.url)
+    if not safe:
+        raise HTTPException(400, why)
+
     conn = db_store.connect()
     try:
         db_store.init_db(conn)
@@ -179,6 +193,10 @@ def patch_source(sid: int, body: SourcePatch):
         if not sources_store.get_source(conn, sid):
             raise HTTPException(404, "没有这个来源")
         fields = {k: v for k, v in body.model_dump().items() if v is not None}
+        if "url" in fields:
+            safe, why = security.is_safe_url(fields["url"])
+            if not safe:
+                raise HTTPException(400, why)
         if "enabled" in fields:
             sources_store.set_enabled(conn, sid, bool(fields.pop("enabled")))
         if fields:
@@ -283,9 +301,57 @@ def fetch_source(sid: int):
         if not s:
             raise HTTPException(404, "没有这个来源")
         r = run_source_once(conn, s)
-        return {"ok": not r["error"], **r, "source": source_payload(conn, s)}
+        # 必须重新读一次：run_source_once 会更新健康字段，
+        # 用抓取前那个对象打包的话，界面上会一直显示上一次的结果
+        # —— 表现为"点了立即抓取，状态灯却没变"，很容易误以为没生效。
+        s2 = sources_store.get_source(conn, sid)
+        return {"ok": not r["error"], **r, "source": source_payload(conn, s2)}
     finally:
         conn.close()
+
+
+@app.post("/api/sources/{sid}/retry")
+def retry_source(sid: int):
+    """手动重试：清零失败计数、解除自动隔离，并让它立刻到期。
+
+    隔离必须可逆 —— 否则一个网址填错的来源会永远卡在"已暂停"，
+    用户只能删掉重加。
+    """
+    conn = db_store.connect()
+    try:
+        db_store.init_db(conn)
+        s = sources_store.get_source(conn, sid)
+        if not s:
+            raise HTTPException(404, "没有这个来源")
+        sources_store.reset_health(conn, sid)
+        return {"ok": True, "source": source_payload(conn, sources_store.get_source(conn, sid))}
+    finally:
+        conn.close()
+
+
+class UrlCheckIn(BaseModel):
+    url: str
+    check_robots: bool = True
+
+
+@app.post("/api/security/check-url")
+def check_url(body: UrlCheckIn):
+    """新增来源前的预检：网址是否安全、robots 是否允许。
+
+    放在保存之前，是为了让"内网地址 / 不支持的协议"这类问题在
+    用户点保存的那一刻就看见，而不是等第一次抓取失败后再猜。
+    """
+    safe, why = security.is_safe_url(body.url)
+    out = {"url": body.url, "safe": safe, "reason": why, "robots": None}
+    if safe and body.check_robots:
+        from core import robots as robots_mod
+
+        try:
+            allowed, reason = robots_mod.allowed(body.url)
+            out["robots"] = {"allowed": allowed, "reason": reason}
+        except Exception as e:
+            out["robots"] = {"allowed": True, "reason": f"检查失败：{e}"}
+    return out
 
 
 @app.get("/api/sources/{sid}/runs")
@@ -324,6 +390,10 @@ def list_items(
                 "title": r["title"],
                 "url": r["url"],
                 "summary": r["summary"],
+                # 给界面用的富文本版本：经过白名单清洗，可以安全地 innerHTML。
+                # 现在大多数来源的摘要在入库时就已被 strip_html 压成纯文本，
+                # 这一层是兜底 —— 万一哪个解析器留下了标签，也不会被执行。
+                "summary_html": sanitize_html(r["summary"] or ""),
                 "published_at": r["published_at"],
                 "discovered_at": r["discovered_at"],
                 "read_at": r["read_at"],
@@ -418,7 +488,17 @@ def main() -> None:
     # 用 AGG_NO_BROWSER=1 可以只起服务不弹浏览器（自动化测试用）
     if not os.environ.get("AGG_NO_BROWSER"):
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
-    uvicorn.run(app, host=HOST, port=PORT, log_level="warning")
+    try:
+        uvicorn.run(app, host=HOST, port=PORT, log_level="warning")
+    except OSError:
+        # 双击启动脚本时最常见的失败原因：上一个实例还开着。
+        # 不给提示的话，窗口闪一下就没了，用户完全不知道发生了什么。
+        print()
+        print(f"[错误] 端口 {PORT} 被占用 —— 服务很可能已经在运行了。")
+        print(f"       直接打开 {url} 试试；")
+        print("       如果确实想重启，先关掉那个窗口（或在任务管理器里结束 python 进程）。")
+        print()
+        sys.exit(1)
 
 
 if __name__ == "__main__":

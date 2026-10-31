@@ -144,7 +144,11 @@ class Scheduler:
             conn = db_store.connect(self.db_path)
             try:
                 r = run_source_once(conn, source)
-                status = "error" if r["error"] else ("ok" if r["new"] else "empty")
+                status = (
+                    "error" if r["error"]
+                    else r.get("status") if r.get("status") == "not_modified"
+                    else ("ok" if r["new"] else "empty")
+                )
                 _log(
                     f"#{source.id} {source.name}: {status} "
                     f"找到 {r['found']} 新增 {r['new']} "

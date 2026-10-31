@@ -132,12 +132,14 @@ function renderSources(){
     <div class="card ${on?'active':''}" onclick="selectSource(${s.id})">
       <h3><span class="dot d-${s.health}"></span>${esc(s.name)}</h3>
       <div class="meta">${esc(s.type)} · ${s.item_count} 条 · 每 ${Math.round(s.interval_sec/60)} 分钟</div>
+      <div class="meta">${esc(s.health_text || s.health)}</div>
       <div class="meta">上次抓取：${fmt(s.last_fetched_at) || '从未'}${s.enabled?'':' · 已暂停'}</div>
       ${on && s.sections.length ? `<div>${s.sections.map(x =>
         `<span class="chip ${CUR_SEC===(x.name||'')?'on':''}" onclick="event.stopPropagation();selectSection('${esc(x.name)}')">${esc(x.name||'未命名')} ${x.count}</span>`).join('')}</div>` : ''}
       ${s.last_error ? `<div class="err">${esc(s.last_error)}</div>` : ''}
       <div class="row">
         <button class="sm" onclick="event.stopPropagation();fetchNow(${s.id})">立即抓取</button>
+        ${s.isolated ? `<button class="sm" onclick="event.stopPropagation();retrySource(${s.id})">重试（解除暂停）</button>` : ''}
         <button class="sm" onclick="event.stopPropagation();openEdit(${s.id})">编辑规则</button>
         <button class="sm" onclick="event.stopPropagation();toggleEnabled(${s.id},${s.enabled?0:1})">${s.enabled?'暂停':'启用'}</button>
         <button class="sm" onclick="event.stopPropagation();showRuns(${s.id})">日志</button>
@@ -190,7 +192,8 @@ async function loadItems(){
         ${it.section?`<span class="tag">${esc(it.section)}</span>`:''}
         ${fmt(it.published_at)||fmt(it.discovered_at)}
       </div>
-      ${it.summary?`<div class="sum">${esc(it.summary.slice(0,140))}</div>`:''}
+      ${it.summary_html?`<div class="sum">${it.summary_html.slice(0,220)}</div>`
+        :(it.summary?`<div class="sum">${esc(it.summary.slice(0,140))}</div>`:'')}
       <div class="row">
         <button class="sm" onclick="setStar(${it.id},${it.starred?0:1})">${it.starred?'★ 已收藏':'☆ 收藏'}</button>
         <button class="sm" onclick="setRead(${it.id},${it.read_at?0:1})">${it.read_at?'标为未读':'标为已读'}</button>
@@ -205,8 +208,16 @@ async function setStar(id,v){ await api(`/api/items/${id}/state`,{method:'POST',
 /* ---------------- 来源操作 ---------------- */
 async function fetchNow(id){
   const r = await api(`/api/sources/${id}/fetch`,{method:'POST'});
-  alert(r.ok ? `抓到 ${r.found} 条，新增 ${r.new} 条` : ('失败：' + (r.error||'未知原因')));
+  if(r.not_modified){ alert('内容没有变化（服务器返回 304），本次跳过解析。'); }
+  else if(r.ok){ alert(`抓到 ${r.found} 条，新增 ${r.new} 条`); }
+  else { alert('失败：' + (r.error||'未知原因')); }
   loadSources(); loadItems();
+}
+/* 手动重试：清零失败计数、解除自动隔离，并让它立刻到期。
+   来源连续失败 5 次会被自动暂停，这里给它一条回来的路。 */
+async function retrySource(id){
+  await api(`/api/sources/${id}/retry`,{method:'POST'});
+  loadSources();
 }
 async function toggleEnabled(id,v){
   await api(`/api/sources/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:!!v})});
@@ -243,6 +254,17 @@ async function doDetect(){
   const url = $('nUrl').value.trim();
   if(!url) return;
   $('nResult').innerHTML = '<div class="meta">探测中…</div>';
+
+  // 先做安全预检：内网地址、不支持的协议在探测之前就挡掉，
+  // 免得用户看着"探测失败"猜不出真正原因。
+  let chk;
+  try{ chk = await api('/api/security/check-url',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url, check_robots:false})}); }
+  catch(e){ chk = null; }
+  if(chk && !chk.safe){
+    $('nResult').innerHTML = `<div class="err"><b>这个网址不能用</b><br>${esc(chk.reason)}</div>`;
+    return;
+  }
+
   let r;
   try{ r = await api('/api/detect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})}); }
   catch(e){ $('nResult').innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }

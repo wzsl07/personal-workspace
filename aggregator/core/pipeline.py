@@ -11,7 +11,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime, timedelta, timezone
 
-from adapters.http_fetch import fetch
+from adapters.http_fetch import DEFAULT_UA, fetch
 from normalizers.text import make_summary, strip_html
 from parsers.base import parse
 from storage import items as items_store
@@ -48,7 +48,17 @@ def run_source_once(conn: sqlite3.Connection, source, *, verbose: bool = False) 
     }
 
     try:
-        resp = fetch(source.url)
+        policy = source.fetch_policy or {}
+        # robots 默认遵守；来源里显式配了 ignore_robots=1 才跳过（界面会提示风险自负）
+        respect_robots = not bool(policy.get("ignore_robots"))
+
+        resp = fetch(
+            source.url,
+            user_agent=policy.get("user_agent") or DEFAULT_UA,
+            etag=source.etag,
+            last_modified=source.last_modified,
+            respect_robots=respect_robots,
+        )
         result["http_status"] = resp.status
         result["duration_ms"] = resp.duration_ms
 
@@ -61,6 +71,19 @@ def run_source_once(conn: sqlite3.Connection, source, *, verbose: bool = False) 
                 error_message=result["error"],
             )
             sources_store.record_result(conn, source.id, ok=False, error_message=result["error"])
+            return result
+
+        # 304：内容没变。这是省流量最关键的一档 —— 不解析、不入库、不写条目，
+        # 但仍是"成功"，所以失败计数要清零，否则正常源会被误判成故障。
+        if resp.not_modified:
+            result["status"] = "not_modified"
+            runs_store.finish_run(
+                conn, run_id, status="not_modified", http_status=304,
+                duration_ms=resp.duration_ms,
+            )
+            sources_store.record_result(conn, source.id, ok=True, new_count=0)
+            if verbose:
+                print(f"  [{source.name}] 304 未修改，跳过解析")
             return result
 
         parsed = parse(source.type, resp.body, resp.final_url or source.url, source.parser_config)
@@ -85,7 +108,6 @@ def run_source_once(conn: sqlite3.Connection, source, *, verbose: bool = False) 
 
         new_items, dup_items = classify(conn, source.id, fresh)
         written = items_store.save_new_items(conn, source.id, new_items)
-        policy = source.fetch_policy or {}
         items_store.prune(
             conn,
             source.id,
@@ -111,7 +133,11 @@ def run_source_once(conn: sqlite3.Connection, source, *, verbose: bool = False) 
             items_new=written,
             error_message="; ".join(parsed.warnings) or None,
         )
-        sources_store.record_result(conn, source.id, ok=True, new_count=written)
+        # 把这次的 ETag / Last-Modified 存下来，下一轮带上就能拿到 304
+        sources_store.record_result(
+            conn, source.id, ok=True, new_count=written,
+            etag=resp.etag, last_modified=resp.last_modified,
+        )
 
         if verbose:
             extra = f"，跳过 {result['old_skipped']} 条过期" if result.get("old_skipped") else ""

@@ -161,30 +161,50 @@ def record_result(
     error_message: str | None = None,
     new_count: int = 0,
     next_interval: int | None = None,
+    etag: str | None = ...,
+    last_modified: str | None = ...,
 ) -> None:
-    """一次抓取结束后更新来源的健康字段（Step 2 的退避/降频会复用这里）。"""
+    """一次抓取结束后更新来源的健康字段（退避 / 降频 / 隔离都在这里落地）。
+
+    etag / last_modified 用 `...` 作默认值表示"调用方没传，保持原值"；
+    传 None 表示"这一轮确实没有，清掉"。
+    """
+    from core import health as H
+
     src = get_source(conn, source_id)
     if not src:
         return
     now = now_iso()
-    interval = next_interval or src.interval_sec
+
     if ok:
-        health = "ok"
         fail_streak = 0
         idle_streak = 0 if new_count else src.idle_streak + 1
-        if src.fail_streak >= 3 and src.fail_streak < 5:
-            health = "degraded"      # 刚从失败恢复，观察一下
+        interval = next_interval or H.next_interval_on_success(
+            configured=src.interval_sec, idle_streak=idle_streak, new_count=new_count
+        )
         last_error = None
     else:
         fail_streak = src.fail_streak + 1
-        health = "failing" if fail_streak >= 3 else "degraded"
-        idle_streak = src.idle_streak
+        idle_streak = src.idle_streak          # 失败不算"无新条目"，否则坏源会被一路降频
+        interval = next_interval or H.next_interval_on_failure(fail_streak)
         last_error = error_message
+
+    isolate = H.should_isolate(fail_streak)
+    enabled = 0 if isolate else 1
+    health = H.health_of(
+        ok=ok, fail_streak=fail_streak, idle_streak=idle_streak, enabled=bool(enabled)
+    )
+    if isolate:
+        last_error = (last_error or "") + f"（连续失败 {fail_streak} 次，已自动暂停）"
+
+    new_etag = src.etag if etag is ... else etag
+    new_lm = src.last_modified if last_modified is ... else last_modified
 
     next_due = compute_next_due(interval, datetime.now(LOCAL_TZ))
     conn.execute(
         """UPDATE sources SET last_fetched_at=?, last_success_at=?, last_error=?,
-           health_status=?, fail_streak=?, idle_streak=?, next_due_at=?, updated_at=?
+           health_status=?, fail_streak=?, idle_streak=?, next_due_at=?, updated_at=?,
+           enabled=?, etag=?, last_modified=?
            WHERE id=?""",
         (
             now,
@@ -195,7 +215,25 @@ def record_result(
             idle_streak,
             next_due,
             now,
+            enabled,
+            new_etag,
+            new_lm,
             source_id,
         ),
+    )
+    conn.commit()
+
+
+def reset_health(conn: sqlite3.Connection, source_id: int) -> None:
+    """手动重试：清零失败计数、解除隔离，并让它立刻到期。
+
+    这是"隔离必须可逆"的那一半 —— 自动停掉很容易，能一键救回来才不会逼用户删了重加。
+    """
+    conn.execute(
+        """UPDATE sources
+           SET fail_streak=0, idle_streak=0, health_status='unknown',
+               enabled=1, last_error=NULL, next_due_at=?, updated_at=?
+           WHERE id=?""",
+        (now_iso(), now_iso(), source_id),
     )
     conn.commit()

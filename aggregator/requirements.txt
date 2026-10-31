@@ -17,3 +17,7 @@ parsel>=1.9.0
 # 本地 Web 服务与界面（Step 4 起使用）
 fastapi>=0.115.0
 uvicorn>=0.32.0
+
+# 来源里如果配了 API token，会用它加密后再存进数据库（Step 5 的合规要求）。
+# 目的不是防黑客，而是防止你把配置导出/分享给同学时 token 跟着泄露。
+cryptography>=42.0.0

@@ -49,6 +49,9 @@ npm run tauri:build
 `aggregator/` 是一个独立的 Python 小服务：订阅 RSS / JSON 接口 / 普通网页，
 定时抓取并按网页自身的栏目分类存进 SQLite。桌面版的「信息流」页会读取它。
 
+**双击 `aggregator\启动工作台.bat` 即可** —— 它会自动检查 Python 与依赖、
+启动服务并打开浏览器，不用记端口和命令。（停止：在那个窗口按 Ctrl + C）
+
 ```bash
 cd aggregator
 python -m pip install -r requirements.txt
@@ -56,6 +59,10 @@ python main.py          # 自动打开 http://127.0.0.1:8787
 ```
 
 它只监听本机，不对外暴露；手机访问不到，所以「信息流」只在桌面版出现。
+
+合规与安全是默认开启的：遵守 robots.txt、明示 User-Agent、抓取间隔不低于 15 分钟、
+**拒绝内网地址（含重定向每一跳）**、抓来的富文本经白名单清洗后才渲染、
+只存标题+摘要+原文链接、来源里的 token 加密存储。详见 [`aggregator/README.md`](aggregator/README.md)。
 
 ## 技术栈
 
