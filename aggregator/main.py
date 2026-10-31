@@ -480,25 +480,43 @@ def start_scheduler() -> None:
 
 
 def main() -> None:
+    url = f"http://{HOST}:{PORT}/"
+
+    # 先探端口，再动别的。不能只靠 try/except OSError ——
+    # uvicorn 内部会走自己的退出路径，异常捕获不一定轮得到我们，
+    # 结果就是双击 .bat 后窗口闪一下就没了，用户完全不知道发生了什么。
+    if not _port_free(HOST, PORT):
+        print()
+        print(f"[错误] 端口 {PORT} 已经被占用 —— 服务很可能已经在运行了。")
+        print(f"       直接打开 {url} 看看；")
+        print("       如果确实要重启，先关掉那个黑窗口（或在任务管理器里结束 python.exe）。")
+        print()
+        sys.exit(1)
+
     db_store.init_db(db_store.connect())
     start_scheduler()
-    url = f"http://{HOST}:{PORT}/"
     print(f"服务已启动：{url}（只监听本机）")
     print("按 Ctrl+C 停止")
     # 用 AGG_NO_BROWSER=1 可以只起服务不弹浏览器（自动化测试用）
     if not os.environ.get("AGG_NO_BROWSER"):
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+
+    uvicorn.run(app, host=HOST, port=PORT, log_level="warning")
+
+
+def _port_free(host: str, port: int) -> bool:
+    """端口能不能独占绑定。"""
+    import socket
+
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        uvicorn.run(app, host=HOST, port=PORT, log_level="warning")
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 0)
+        s.bind((host, port))
+        return True
     except OSError:
-        # 双击启动脚本时最常见的失败原因：上一个实例还开着。
-        # 不给提示的话，窗口闪一下就没了，用户完全不知道发生了什么。
-        print()
-        print(f"[错误] 端口 {PORT} 被占用 —— 服务很可能已经在运行了。")
-        print(f"       直接打开 {url} 试试；")
-        print("       如果确实想重启，先关掉那个窗口（或在任务管理器里结束 python 进程）。")
-        print()
-        sys.exit(1)
+        return False
+    finally:
+        s.close()
 
 
 if __name__ == "__main__":
