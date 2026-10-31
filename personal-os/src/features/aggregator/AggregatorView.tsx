@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Icon } from '../../ui/Icon';
+import { isTauri, openPath } from '../../core/adapters/desktop';
 
 /**
  * 信息流：读取本机的「信息聚合」服务（Python，默认 http://127.0.0.1:8787）。
@@ -150,6 +151,33 @@ export function AggregatorView() {
     }
   }
 
+  /** 删除当前选中的来源（连带它的条目一起删）。 */
+  async function delSource(id: number) {
+    const s = sources.find((x) => x.id === id);
+    const label = s ? `「${s.name}」` : '这个来源';
+    // 桌面壳里 confirm 是可用的；真出问题时也有下面这句兜底提示。
+    if (!window.confirm(`删除${label}？它的条目会一起删掉，不可恢复。`)) return;
+    setMsg('删除中…');
+    try {
+      await api(`/api/sources/${id}`, { method: 'DELETE' });
+      setCur(null);
+      setSec('');
+      await loadSources();
+      await loadItems();
+      setMsg(`已删除${label}`);
+    } catch {
+      setMsg('删除失败，聚合服务可能已停止');
+    }
+  }
+
+  /** 用系统默认浏览器打开聚合服务页面（新增/编辑/删除来源都在那边）。 */
+  async function openManage() {
+    const ok = await openPath(base);
+    if (!ok) {
+      setMsg(`没能自动打开浏览器，请手动访问：${base}`);
+    }
+  }
+
   function saveBase(v: string) {
     setBase(v);
     try {
@@ -282,14 +310,29 @@ export function AggregatorView() {
               <Icon name="Download" size={13} /> 抓这个源
             </button>
           )}
-          <a
-            className="btn text-xs btn-ghost"
-            href={base}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            管理来源 <Icon name="ExternalLink" size={12} />
-          </a>
+          {cur && (
+            <button className="btn text-xs" onClick={() => void delSource(cur)}>
+              <Icon name="Trash2" size={13} /> 删这个源
+            </button>
+          )}
+          {/*
+            Tauri 的 WebView 里 <a target="_blank"> 打不开外部浏览器（点了没反应），
+            必须走系统默认程序。网页版里没有 isTauri()，就退回普通链接。
+          */}
+          {isTauri() ? (
+            <button className="btn text-xs btn-ghost" onClick={() => void openManage()}>
+              管理来源 <Icon name="ExternalLink" size={12} />
+            </button>
+          ) : (
+            <a
+              className="btn text-xs btn-ghost"
+              href={base}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              管理来源 <Icon name="ExternalLink" size={12} />
+            </a>
+          )}
         </div>
 
         {msg && <div className="text-[11px] text-fg-muted mb-2">{msg}</div>}
