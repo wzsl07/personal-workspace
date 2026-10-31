@@ -638,7 +638,7 @@ export function AggregatorView() {
     return (
       <div className="p-6 space-y-3">
         <h2 className="text-sm font-medium">信息流</h2>
-        <div className="rounded border border-line bg-panel p-4 text-[13px] leading-6">
+        <div className="rounded border border-line bg-bg-panel p-4 text-[13px] leading-6">
           <b>信息聚合服务没启动。</b>
           <br />
           它是一台跑在你电脑上的小服务，负责定时抓取 RSS 和网页公告 ——
@@ -664,7 +664,7 @@ export function AggregatorView() {
         </div>
 
         {isTauri() && (
-          <div className="rounded border border-line bg-panel p-3 space-y-2">
+          <div className="rounded border border-line bg-bg-panel p-3 space-y-2">
             <div className="text-[13px] font-medium">或者，在这里直接启动它</div>
             <div className="text-[11px] text-fg-dim">
               下面是启动脚本的位置。一般不用改；如果你的项目放在别处，就改成那里的
@@ -824,7 +824,7 @@ export function AggregatorView() {
 
         {/* ---------- 选中来源后的操作区 ---------- */}
         {curSource && (
-          <div className="rounded border border-line bg-panel p-3 mb-3">
+          <div className="rounded border border-line bg-bg-panel p-3 mb-3">
             <div className="flex items-start gap-2">
               <span
                 className={`w-2 h-2 mt-1.5 rounded-full ${HEALTH[curSource.health] ?? 'bg-gray-400'}`}
@@ -987,7 +987,7 @@ export function AggregatorView() {
 
         {/* ---------- 新增来源 ---------- */}
         {panel === 'new' && (
-          <div className="rounded border border-line bg-panel p-3 mb-3">
+          <div className="rounded border border-line bg-bg-panel p-3 mb-3">
             <div className="text-[13px] font-medium mb-2">新增来源</div>
             <div className="flex gap-2 mb-2">
               <input
@@ -1066,7 +1066,7 @@ export function AggregatorView() {
           </div>
         )}
         {panel === 'opml' && (
-          <div className="rounded border border-line bg-panel p-3 mb-3">
+          <div className="rounded border border-line bg-bg-panel p-3 mb-3">
             <div className="text-[11px] text-fg-dim mb-1">
               把 OPML 内容粘贴进来（别的阅读器导出的文件可以用记事本打开后复制）。
             </div>
@@ -1191,7 +1191,7 @@ export function AggregatorView() {
               onClick={() => setReader(null)}
               aria-hidden
             />
-            <div className="absolute inset-y-0 right-0 w-full max-w-[560px] flex flex-col border-l border-line bg-panel shadow-lg">
+            <div className="absolute inset-y-0 right-0 w-full max-w-[560px] flex flex-col border-l border-line bg-bg-panel shadow-lg">
               {/* 正文是从别的网站抓来的，只给最基本的排版，避免原站样式污染界面 */}
               <style>{`
                 .prose-article p{margin:6px 0}

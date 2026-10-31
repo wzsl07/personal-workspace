@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import json
+import re
 import os
 import sys
 import threading
@@ -536,6 +537,45 @@ def _best_content_node(html_doc: str):
     return best
 
 
+#: 正文里不该出现的"站内导航"。高校站几乎都在正文末尾放
+#: 「上一条：… 下一条：…」，抓正文时会跟着进来，看起来像正文的一部分。
+_NAV_TEXT_RE = re.compile(
+    r"^\s*(上一条|下一条|上一篇|下一篇|上一条:|下一条:|上一条：|下一条：|"
+    r"返回列表|返回上级|打印本页|打印此页|关闭窗口|返回顶部|【打印】)",
+)
+
+#: class / id 里带这些词的容器基本都是翻页或工具条
+_NAV_CLASS_RE = re.compile(r"(prev|next|pager|paging|pagination|share|bdshare|print)", re.I)
+
+
+def _strip_article_nav(node) -> None:
+    """把正文节点里的翻页导航、打印/关闭之类的小工具条去掉。"""
+    doomed = []
+    for el in node.root.iter():
+        if not isinstance(el.tag, str):
+            doomed.append(el)
+            continue
+        # 容器级判断：class/id 像翻页就直接整块丢
+        marks = " ".join(
+            filter(None, [el.get("class") or "", el.get("id") or ""])
+        )
+        if marks and _NAV_CLASS_RE.search(marks):
+            doomed.append(el)
+            continue
+        # 文字级判断：整块文字以"上一条/下一条…"开头的，连同链接一起丢
+        txt = _re_ws.sub(" ", (el.text_content() or "")).strip()
+        if txt and _NAV_TEXT_RE.match(txt):
+            doomed.append(el)
+
+    for el in doomed:
+        parent = el.getparent()
+        if parent is not None:
+            parent.remove(el)
+
+
+_re_ws = re.compile(r"\s+")
+
+
 def _extract_main_html(html_doc: str, base_url: str) -> str:
     """取出正文的 HTML，清洗成可以安全渲染的样子。
 
@@ -550,6 +590,8 @@ def _extract_main_html(html_doc: str, base_url: str) -> str:
     node = _best_content_node(html_doc)
     if node is None:
         return ""
+
+    _strip_article_nav(node)
 
     try:
         from lxml import html as lxml_html
