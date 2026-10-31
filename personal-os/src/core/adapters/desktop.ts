@@ -23,7 +23,7 @@ export function isTauri(): boolean {
 export async function desktopInfo(): Promise<string> {
   if (!isTauri()) return '当前运行在浏览器中（未启用桌面壳）';
   try {
-    const info = await invoke<{ arch?: string; os?: string }>('desktop_info');
+    const info = await invoke<{ arch?: string; os?: string }>('desktop_info_cmd');
     return `Tauri 桌面壳 · ${info.os ?? 'unknown'} ${info.arch ?? ''}`.trim();
   } catch {
     return 'Tauri 桌面壳（信息获取失败）';
@@ -59,7 +59,7 @@ export async function requestNotifyPermission(): Promise<NotifyPermission> {
 export async function notify(title: string, body: string): Promise<boolean> {
   if (isTauri()) {
     try {
-      await invoke('desktop_notify', { title, body });
+      await invoke('desktop_notify_cmd', { title, body });
       return true;
     } catch {
       return false;
@@ -82,7 +82,7 @@ export async function notify(title: string, body: string): Promise<boolean> {
 export async function openQuickWindow(): Promise<boolean> {
   if (!isTauri()) return false;
   try {
-    await invoke('open_quick_window');
+    await invoke('open_quick_window_cmd');
     return true;
   } catch {
     return false;
@@ -115,7 +115,7 @@ export async function showMainWindow(): Promise<boolean> {
 export async function registerHotkey(accelerator: string): Promise<boolean> {
   if (!isTauri()) return false;
   try {
-    await invoke('register_hotkey', { accelerator });
+    await invoke('register_hotkey_cmd', { accelerator });
     return true;
   } catch {
     return false;
@@ -126,7 +126,7 @@ export async function registerHotkey(accelerator: string): Promise<boolean> {
 export async function unregisterAllHotkeys(): Promise<boolean> {
   if (!isTauri()) return false;
   try {
-    await invoke('unregister_all_hotkeys');
+    await invoke('unregister_all_hotkeys_cmd');
     return true;
   } catch {
     return false;
@@ -141,7 +141,7 @@ export async function unregisterAllHotkeys(): Promise<boolean> {
 export async function dataDir(): Promise<string | null> {
   if (!isTauri()) return null;
   try {
-    return await invoke<string>('data_dir');
+    return await invoke<string>('data_dir_cmd');
   } catch {
     return null;
   }
@@ -151,7 +151,7 @@ export async function dataDir(): Promise<string | null> {
 export async function openPath(path: string): Promise<boolean> {
   if (!isTauri()) return false;
   try {
-    await invoke('open_path', { path });
+    await invoke('open_path_cmd', { path });
     return true;
   } catch {
     return false;
@@ -162,7 +162,7 @@ export async function openPath(path: string): Promise<boolean> {
 export async function shellVersion(): Promise<string | null> {
   if (!isTauri()) return null;
   try {
-    return await invoke<string>('app_version');
+    return await invoke<string>('app_version_cmd');
   } catch {
     return null;
   }
@@ -186,7 +186,7 @@ export async function saveTextFile(
 ): Promise<string | null | false> {
   if (!isTauri()) return false;
   try {
-    return await invoke<string | null>('save_text_file', { defaultName, content });
+    return await invoke<string | null>('save_text_file_cmd', { defaultName, content });
   } catch {
     return false;
   }
@@ -200,7 +200,7 @@ export async function saveTextFile(
 export async function pickDataDir(): Promise<string | null> {
   if (!isTauri()) return null;
   try {
-    return await invoke<string | null>('pick_data_dir');
+    return await invoke<string | null>('pick_data_dir_cmd');
   } catch {
     return null;
   }
@@ -209,7 +209,7 @@ export async function pickDataDir(): Promise<string | null> {
 export async function writeFileAbs(path: string, content: string): Promise<boolean> {
   if (!isTauri()) return false;
   try {
-    await invoke('write_text_file', { path, content });
+    await invoke('write_text_file_cmd', { path, content });
     return true;
   } catch {
     return false;
