@@ -121,6 +121,8 @@ export function AggregatorView() {
   /** 展开的条目 id 与它的 AI 摘要 */
   const [summaryFor, setSummaryFor] = useState<number | null>(null);
   const [summaryText, setSummaryText] = useState('');
+  /** 打开原文失败时摆出来给人复制的地址 */
+  const [openFail, setOpenFail] = useState('');
 
   const api = useCallback(
     async (path: string, init?: RequestInit) => {
@@ -186,7 +188,23 @@ export function AggregatorView() {
   async function openArticle(url: string) {
     if (!url) return;
     const ok = await openPath(url);
-    if (!ok) setMsg(`没能自动打开浏览器，请手动复制这个地址：${url}`);
+    if (!ok) {
+      // 光提示一句没用 —— 用户还得手打这串网址。
+      // 直接把地址摆出来让他复制。
+      setOpenFail(url);
+      setMsg('没能自动打开浏览器，下面是完整地址，可以复制后粘贴到浏览器');
+    } else {
+      setOpenFail('');
+    }
+  }
+
+  async function copyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setMsg('已复制到剪贴板');
+    } catch {
+      setMsg('复制失败，请手动选中下面的地址');
+    }
   }
 
   async function summarize(item: AggItem) {
@@ -615,6 +633,18 @@ export function AggregatorView() {
         </div>
 
         {msg && <div className="text-[11px] text-fg-muted mb-2">{msg}</div>}
+
+        {openFail && (
+          <div className="flex items-center gap-2 mb-3">
+            <input className="field flex-1 text-[11px] font-mono" value={openFail} readOnly />
+            <button className="btn text-xs" onClick={() => void copyText(openFail)}>
+              复制
+            </button>
+            <button className="btn text-xs btn-ghost" onClick={() => setOpenFail('')}>
+              关闭
+            </button>
+          </div>
+        )}
 
         {/* ---------- 选中来源后的操作区 ---------- */}
         {curSource && (

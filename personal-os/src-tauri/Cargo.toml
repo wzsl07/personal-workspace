@@ -18,6 +18,13 @@ tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+# 仅 Windows：调用 ShellExecuteW 打开网址/文件。
+# 为什么不用 spawn(cmd/explorer)：那样会创建子进程，未签名的程序
+# 在部分杀软（如 McAfee）下会被拦截，spawn 直接失败。
+# ShellExecuteW 走的是外壳关联，跟双击文件同一条路，不创建中间进程。
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_UI_Shell", "Win32_Foundation"] }
+
 [profile.release]
 codegen-units = 1
 lto = true
