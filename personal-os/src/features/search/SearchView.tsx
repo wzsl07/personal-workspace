@@ -8,7 +8,7 @@ import { Icon } from '../../ui/Icon';
 import { AskPanel } from './AskPanel';
 import { SemanticPanel } from './SemanticPanel';
 import { ScopeChips } from './ScopeChips';
-import { loadScopes, saveScopes, type Scope } from './scope';
+import { loadScopes, saveScopes, loadFeedContentFlag, type Scope } from './scope';
 import { expandAndSearch } from '../../core/adapters/ai/ask';
 import { pullFeed, feedAvailable, type FeedDoc } from '../../core/aggregator/client';
 import { openPath } from '../../core/adapters/desktop';
@@ -76,10 +76,29 @@ export function SearchView() {
     toast(r.fresh ? `信息流已更新（${r.docs.length} 条）` : `没拉到：${r.error}`, r.fresh ? 'ok' : 'warn');
   }
 
+  // 「问答连正文一起搜」关掉时，索引里就不放正文（检索不出网，但片段会送给模型，
+  // 所以这一步是给不想让正文出网的人用的）
+  const [feedContent, setFeedContent] = useState<boolean>(() => loadFeedContentFlag());
+
   // 数据变更后重建索引（几千条内耗时可忽略）
   useEffect(() => {
-    if (items && notes) buildIndex(items, notes, attachments ?? [], feed);
-  }, [items, notes, attachments, feed]);
+    if (items && notes) {
+      buildIndex(
+        items,
+        notes,
+        attachments ?? [],
+        feed.map((f) => ({
+          id: f.id,
+          refId: f.refId,
+          title: f.title,
+          summary: f.summary,
+          content: feedContent ? f.content : '',
+          sourceName: f.sourceName,
+          section: f.section,
+        })),
+      );
+    }
+  }, [items, notes, attachments, feed, feedContent]);
 
   /* ---- 基础命中 ---- */
   const baseHits: SearchHit[] = useMemo(() => {
@@ -212,7 +231,13 @@ export function SearchView() {
       </div>
 
       {mode === 'ask' ? (
-        <AskPanel scopes={scopes} feed={feed} onScopesChange={changeScopes} />
+        <AskPanel
+          scopes={scopes}
+          feed={feed}
+          onScopesChange={changeScopes}
+          withContent={feedContent}
+          onContentChange={setFeedContent}
+        />
       ) : mode === 'semantic' ? (
         <SemanticPanel scopes={scopes} feed={feed} feedAt={feedAt} />
       ) : (

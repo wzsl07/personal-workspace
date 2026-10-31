@@ -27,6 +27,9 @@ export interface AskHit {
   url?: string;
 }
 
+/** 搜索范围（与界面上的 chips 一致；这里独立声明，避免 core 依赖 features） */
+export type AskScope = 'item' | 'note' | 'attachment' | 'feed';
+
 /** 问答要用到的信息流条目（最小字段，避免搜索层与聚合客户端互相依赖） */
 export interface FeedLike {
   refId: string;
@@ -186,17 +189,26 @@ async function planByModel(cfg: AIConfig, question: string, now: Date): Promise<
   return q;
 }
 
+/**
+ * 查询范围里"日程类"的那部分（日程 / 笔记 / 附件）。
+ * 用来判断要不要去翻日程表 —— 只勾信息流时就别翻。
+ */
+function hasScheduleKind(kinds: AskScope[]): boolean {
+  return kinds.some((k) => k === 'item' || k === 'note' || k === 'attachment');
+}
+
 /** 执行查询并把结果压成"片段"，供总结与引用 */
 export async function collectHits(
   query: ItemQuery,
-  opts?: { feed?: FeedLike[]; includeFeedContent?: boolean },
+  opts?: { feed?: FeedLike[]; scopes?: AskScope[] },
 ): Promise<AskHit[]> {
   const feed = opts?.feed ?? [];
-  const withContent = opts?.includeFeedContent ?? true;
+  const scopes = opts?.scopes ?? ['item', 'note', 'attachment', 'feed'];
 
-  // 只查信息流时不必去翻日程表 —— 反过来也一样，省时间也省得混进无关结果
-  const wantSchedule = !query.scope || query.scope !== 'feed';
-  const wantFeed = query.scope === 'feed' || query.scope === 'all';
+  // 用户勾选是硬约束：勾了什么才能查什么。
+  // 模型的 scope 只能在这个集合里再收窄（比如勾了全部、问"还有什么没做" → 只查日程）。
+  const wantFeed = scopes.includes('feed') && (query.scope === 'feed' || query.scope === 'all' || !query.scope);
+  const wantSchedule = hasScheduleKind(scopes) && (query.scope !== 'feed');
 
   const [items, notes] = wantSchedule
     ? await Promise.all([listItems({ query }), listNotes()])
@@ -230,26 +242,26 @@ export async function collectHits(
     }
   }
 
-  /* ---- 信息流：关键词命中的条目（可搜正文，开关在界面上）---- */
+  /* ---- 信息流：走全文索引，不用整串子串匹配 ----
+   *
+   * 早先这里拿整个关键词做 `includes()`，而关键词常常是一整句话
+   * （"学校关于选课的通知说了什么"），一个字不差才命中 —— 所以"很不准确"。
+   * 现在复用 MiniSearch：中文 2-gram + 前缀 + 模糊，和你在全文 tab 里搜到的完全一致。
+   */
   if (wantFeed && kw) {
-    for (const f of feed) {
+    const byRef = new Map(feed.map((f) => [f.refId, f]));
+    for (const h of fullTextSearch(kw, limit, ['feed'])) {
       if (hits.length >= limit) break;
-      const hayTitle = (f.title || '').toLowerCase();
-      const haySummary = (f.summary || '').toLowerCase();
-      const hayBody = withContent ? (f.content || '').toLowerCase() : '';
-      const posBody = hayBody ? hayBody.indexOf(kw) : -1;
-      if (!hayTitle.includes(kw) && !haySummary.includes(kw) && posBody < 0) continue;
-      const source = hayBody || haySummary;
-      const pos = haySummary.indexOf(kw) >= 0 ? haySummary.indexOf(kw) : posBody;
+      const f = byRef.get(String(h.refId));
       hits.push({
         kind: 'feed',
-        id: f.refId,
-        title: f.title,
-        typeLabel: f.sourceName || f.section || '信息流',
-        when: f.publishedAt ?? '',
-        snippet:
-          pos >= 0 ? source.slice(Math.max(0, pos - 40), pos + 140) : source.slice(0, 140),
-        url: f.url,
+        id: h.refId,
+        title: h.title,
+        typeLabel: h.typeLabel || (f?.sourceName ?? '') || '信息流',
+        when: f?.publishedAt ?? '',
+        // 关掉"连正文一起搜"时，索引里就没有正文，snippet 自然只剩标题+摘要
+        snippet: h.snippet,
+        url: f?.url,
       });
     }
   }
@@ -286,12 +298,12 @@ function fmtWhen(iso: string): string {
 export async function ask(
   question: string,
   now: Date = new Date(),
-  opts?: { feed?: FeedLike[]; includeFeedContent?: boolean },
+  opts?: { feed?: FeedLike[]; scopes?: AskScope[] },
 ): Promise<AskResult> {
   const cfg = await loadConfig();
   const notes: string[] = [];
   const feed = opts?.feed ?? [];
-  const withContent = opts?.includeFeedContent ?? true;
+  const scopes = opts?.scopes ?? ['item', 'note', 'attachment', 'feed'];
 
   // 1) 查询条件：优先模型，失败/关闭则规则兜底
   let query: ItemQuery;
@@ -311,16 +323,12 @@ export async function ask(
     notes.push(`本地规则生成查询条件（${cloudBlockReason(cfg)}）`);
   }
 
-  // 1.5) 范围：信息流没被勾选（调用方没给 feed）就强制只查本地日程/笔记。
-  //      这样"还有什么没做"绝不会冒出一条校园新闻。
-  if (feed.length === 0 && query.scope !== 'schedule') {
-    query.scope = 'schedule';
-  } else if (!query.scope) {
-    query.scope = feed.length ? 'all' : 'schedule';
-  }
+  // 1.5) 范围：模型没给就按"都查"处理，真正能不能查由 collectHits 按界面勾选收敛
+  //      —— 勾了什么才查什么，这样只勾信息流时绝不会冒出日程内容。
+  if (!query.scope) query.scope = 'all';
 
   // 2) 本地执行
-  const hits = await collectHits(query, { feed, includeFeedContent: withContent });
+  const hits = await collectHits(query, { feed, scopes });
 
   // 3) 总结：只在允许出网且有命中时做
   let answer = '';

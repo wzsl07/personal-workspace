@@ -6,18 +6,7 @@ import { Empty } from '../../ui/primitives';
 import { Icon } from '../../ui/Icon';
 import type { FeedDoc } from '../../core/aggregator/client';
 import { openPath } from '../../core/adapters/desktop';
-import type { Scope } from './scope';
-
-const CONTENT_KEY = 'ask.feedContent';
-
-function loadContentFlag(): boolean {
-  try {
-    // 默认开：用户已接受"问答可带信息流正文出网"
-    return localStorage.getItem(CONTENT_KEY) !== '0';
-  } catch {
-    return true;
-  }
-}
+import { SCOPE_LABEL, type Scope } from './scope';
 
 /**
  * 自然语言问答面板。
@@ -29,10 +18,15 @@ function loadContentFlag(): boolean {
 export function AskPanel({
   scopes,
   feed,
+  withContent,
+  onContentChange,
 }: {
   scopes: Scope[];
   feed: FeedDoc[];
   onScopesChange?: (s: Scope[]) => void;
+  /** 信息流正文是否参与（由搜索页持有，因为它决定索引里有没有正文） */
+  withContent: boolean;
+  onContentChange: (v: boolean) => void;
 }) {
   const openEdit = useUI((s) => s.openEdit);
   const openNote = useUI((s) => s.openNote);
@@ -41,18 +35,11 @@ export function AskPanel({
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<AskResult | null>(null);
-  const [withContent, setWithContent] = useState<boolean>(() => loadContentFlag());
 
   const feedOn = scopes.includes('feed');
 
   function toggleContent() {
-    const v = !withContent;
-    setWithContent(v);
-    try {
-      localStorage.setItem(CONTENT_KEY, v ? '1' : '0');
-    } catch {
-      /* 忽略 */
-    }
+    onContentChange(!withContent);
   }
 
   async function run() {
@@ -62,9 +49,8 @@ export function AskPanel({
     try {
       setResult(
         await ask(text, new Date(), {
-          // 没勾信息流就传空数组 —— ask() 里会据此把范围锁死在"日程/笔记"
-          feed: feedOn ? feed : [],
-          includeFeedContent: withContent,
+          feed,
+          scopes,   // 勾了什么才查什么，由 ask() 收敛，模型不能越过
         }),
       );
     } catch (e) {
@@ -92,14 +78,16 @@ export function AskPanel({
       </div>
 
       <div className="mb-3 flex flex-wrap items-center gap-3 text-[11px] text-fg-dim">
-        <span>范围：{scopes.length ? scopes.join(' / ') : '（未选）'}</span>
+        <span>
+          范围：{scopes.length ? scopes.map((s) => SCOPE_LABEL[s]).join(' / ') : '（未选）'}
+        </span>
         {feedOn ? (
           <label className="flex items-center gap-1.5 cursor-pointer select-none">
             <input type="checkbox" checked={withContent} onChange={toggleContent} />
             信息流连正文一起搜
           </label>
         ) : (
-          <span>未勾选「信息流」——问答只查日程与笔记</span>
+          <span>未勾选「信息流」——问答不会查信息流</span>
         )}
         {feedOn && withContent && (
           <span className="text-[#f0a13c]">正文片段会发给模型总结（出网）</span>

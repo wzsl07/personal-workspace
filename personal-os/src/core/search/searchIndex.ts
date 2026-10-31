@@ -130,12 +130,29 @@ export interface SearchHit {
  */
 export function search(q: string, limit = 40, kinds?: SearchKind[]): SearchHit[] {
   if (!index || !q.trim()) return [];
-  const raw = index.search(q, {
-    prefix: true,
-    fuzzy: 0.2,
-    filter: kinds && kinds.length ? (r) => kinds.includes(r.kind as SearchKind) : undefined,
-  });
-  return raw.slice(0, limit).map((r) => {
+  const filter =
+    kinds && kinds.length ? (r: unknown) => kinds.includes((r as SearchDoc).kind) : undefined;
+  const raw = index.search(q, { prefix: true, fuzzy: 0.2, filter });
+
+  /**
+   * 全中（AND）太少时放宽成"任一命中"（OR）。
+   *
+   * 为什么需要：中文按 2-gram 切词后，一句长问句（"学校关于选课的通知说了什么"）
+   * 会切出十几个词，AND 要求全中，一个词不在就整条落空 —— 表现为"明明有却搜不到"。
+   * 放宽后按分数过滤噪声：只保留不低于最高分 25% 的结果，避免"沾边就算"。
+   */
+  let list = raw;
+  if (raw.length < 3) {
+    const loose = index.search(q, { prefix: true, fuzzy: 0.2, filter, combineWith: 'OR' });
+    if (loose.length) {
+      const top = loose[0].score || 1;
+      const seen = new Set(raw.map((r) => r.id));
+      const extra = loose.filter((r) => !seen.has(r.id) && r.score >= top * 0.25);
+      list = [...raw, ...extra];
+    }
+  }
+
+  return list.slice(0, limit).map((r) => {
     const body = String((r as unknown as { body: string }).body ?? '');
     const pos = body.toLowerCase().indexOf(q.slice(0, 2).toLowerCase());
     const snippet = pos >= 0 ? body.slice(Math.max(0, pos - 30), pos + 90) : body.slice(0, 90);
