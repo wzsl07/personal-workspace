@@ -84,6 +84,40 @@ function localToISO(s: string | null): string | null {
 }
 
 /**
+ * 把失败响应翻译成人话 —— **必须把服务端给的 error.message 带出来**。
+ *
+ * 只报状态码是没法排查的：400 可能是模型名不对，可能是开了 json_object 但提示词里
+ * 没有 json 字样，也可能是某个参数这个模型不支持 —— 三种修法完全不同。
+ * DeepSeek 的错误体是 {"error":{"message":"..."}}，这里优先取它。
+ */
+async function httpError(res: Response): Promise<string> {
+  let detail = '';
+  try {
+    const text = (await res.text()).slice(0, 300);
+    try {
+      const j = JSON.parse(text) as {
+        error?: { message?: string } | string;
+        message?: string;
+      };
+      detail = (typeof j.error === 'string' ? j.error : j.error?.message) ?? j.message ?? text;
+    } catch {
+      detail = text;
+    }
+  } catch {
+    detail = '';
+  }
+  detail = detail.replace(/\s+/g, ' ').trim();
+
+  const head =
+    res.status === 401 || res.status === 403
+      ? `接口鉴权失败（${res.status}），检查 API Key 是否正确`
+      : res.status === 404
+        ? '接口地址不对（404），检查是否少了 /v1 或写错了域名'
+        : `接口返回 ${res.status}`;
+  return detail ? `${head}：${detail}` : head;
+}
+
+/**
  * 通用 JSON 对话：给一段 system + user，拿回解析好的 JSON。
  * 问答、查询改写都走这里，复用同一套 provider 与降级逻辑。
  */
@@ -109,14 +143,7 @@ export async function chatJSON(cfg: AIConfig, system: string, user: string): Pro
   });
   const ctype = res.headers.get('content-type') ?? '';
   if (!res.ok) {
-    // 把常见的鉴权 / 地址错误翻译成人话
-    if (res.status === 401 || res.status === 403) {
-      throw new Error(`接口鉴权失败（${res.status}），检查 API Key 是否正确`);
-    }
-    if (res.status === 404) {
-      throw new Error('接口地址不对（404），检查是否少了 /v1 或写错了域名');
-    }
-    throw new Error(`接口返回 ${res.status} ${res.statusText ?? ''}`.trim());
+    throw new Error(await httpError(res));
   }
   if (!ctype.includes('json')) {
     // 返回 HTML 说明请求根本没打到 API（多半是地址空/错，被本地页面兜底了）
@@ -163,13 +190,7 @@ export async function chatText(
     }),
   });
   if (!res.ok) {
-    if (res.status === 401 || res.status === 403) {
-      throw new Error(`接口鉴权失败（${res.status}），检查 API Key 是否正确`);
-    }
-    if (res.status === 404) {
-      throw new Error('接口地址不对（404），检查是否少了 /v1 或写错了域名');
-    }
-    throw new Error(`接口返回 ${res.status} ${res.statusText ?? ''}`.trim());
+    throw new Error(await httpError(res));
   }
   const ctype = res.headers.get('content-type') ?? '';
   if (!ctype.includes('json')) {
@@ -212,8 +233,7 @@ export function createOpenAICompat(
       });
 
       if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        throw new Error(`${label} 返回 ${res.status}：${body.slice(0, 200)}`);
+        throw new Error(`${label} · ${await httpError(res)}`);
       }
 
       const data = (await res.json()) as {

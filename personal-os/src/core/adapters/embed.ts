@@ -131,6 +131,16 @@ export async function loadModel(
     const wasm = env.backends.onnx.wasm as unknown as Record<string, unknown>;
     wasm.numThreads = 1;
     wasm.proxy = false;
+    /**
+     * wasm 二进制必须显式指向本地 libs/。
+     *
+     * transformers.js 在模块初始化时就把 wasmPaths 兜底成了 jsdelivr CDN
+     * （源码：`M.wasm.wasmPaths || (M.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@<ver>/dist/')`），
+     * 不覆盖它就会联网取 wasm —— 桌面的 CSP 是 `script-src 'self'`，动态 import 直接被拦，
+     * 于是报 "no available backend found. ERR: [wasm] TypeError: Failed to fetch dynamically
+     * imported module: https://cdn.jsdelivr.net/..."。必须指回本地，才能真的零外链。
+     */
+    wasm.wasmPaths = LIB_DIR;
     const p = (await pipeline('feature-extraction', MODEL_ID, {
       // 进度回调在 v3 的类型里没有声明，运行时是支持的
       progress_callback: (x: { status?: string }) => onProgress?.(x.status ?? '加载中'),

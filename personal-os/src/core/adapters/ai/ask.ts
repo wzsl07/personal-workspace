@@ -55,7 +55,11 @@ const SUMMARY_SYSTEM = `你是个人助理。用户问了一个问题，下面�
 1. 只根据这些记录回答，不要编造。记录里没有就说"没找到"。
 2. 用简洁的中文回答，需要时在句末用 [1] [2] 标注依据的是第几条记录。
 3. 不要重复罗列记录内容，要给出结论。
-4. 如果问的是"还有什么没做"，按截止时间先后列出重点。`;
+4. 如果问的是"还有什么没做"，按截止时间先后列出重点。
+5. 只输出 JSON，不要解释，格式样例：{"answer":"你的回答"}。
+
+（第 5 条不能省：接口开了 response_format=json_object，DeepSeek / OpenAI 都要求
+提示词里出现 json 字样，否则直接 400 —— 查询条件生成那步能过就是因为它的提示词里有"JSON"。）`;
 
 /** 本地规则兜底：从问题里抽出查询条件（不需要模型） */
 export function planByRule(question: string, now: Date = new Date()): ItemQuery {
@@ -225,7 +229,7 @@ export async function ask(question: string, now: Date = new Date()): Promise<Ask
       notes.push('查询条件由模型生成');
     } catch (e) {
       query = planByRule(question, now);
-      notes.push(`模型生成查询失败，已用本地规则：${e instanceof Error ? e.message.slice(0, 80) : e}`);
+      notes.push(`模型生成查询失败，已用本地规则：${e instanceof Error ? e.message.slice(0, 160) : e}`);
     }
   } else {
     query = planByRule(question, now);
@@ -251,7 +255,7 @@ export async function ask(question: string, now: Date = new Date()): Promise<Ask
       answer = typeof raw.answer === 'string' ? raw.answer : JSON.stringify(raw).slice(0, 400);
       usedCloud = true;
     } catch (e) {
-      answer = `（模型总结失败，下面是原始结果）${e instanceof Error ? e.message.slice(0, 60) : ''}`;
+      answer = `（模型总结失败，下面是原始结果）${e instanceof Error ? e.message.slice(0, 200) : ''}`;
       usedCloud = false;
     }
   } else {
