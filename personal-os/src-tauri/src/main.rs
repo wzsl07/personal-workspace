@@ -303,6 +303,59 @@ fn open_path_cmd(path: String) -> Result<(), String> {
     Ok(())
 }
 
+/// 在常见位置找聚合服务的启动脚本（启动工作台.bat）。
+///
+/// 不能把使用者名写死在代码里（那样别人拿到就用不了），
+/// 所以按几个最可能的位置依次找；找不到就返回空，让用户在界面上手填。
+#[tauri::command]
+fn find_aggregator_launcher_cmd() -> Option<String> {
+    let mut roots: Vec<std::path::PathBuf> = Vec::new();
+    if let Ok(home) = std::env::var("USERPROFILE") {
+        roots.push(std::path::PathBuf::from(home));
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        roots.push(cwd.clone());
+        // 开发时可能从 personal-os 目录启动，往上两级就是工作区根
+        roots.push(cwd.join("..").join(".."));
+    }
+
+    for root in roots {
+        let p = root
+            .join("WorkBuddy日常管理库")
+            .join("aggregator")
+            .join("启动工作台.bat");
+        if p.exists() {
+            return Some(p.to_string_lossy().to_string());
+        }
+        let p2 = root.join("aggregator").join("启动工作台.bat");
+        if p2.exists() {
+            return Some(p2.to_string_lossy().to_string());
+        }
+    }
+    None
+}
+
+/// 启动聚合服务：用外壳打开启动脚本（等价于双击它）。
+#[tauri::command]
+fn start_aggregator_cmd(path: String) -> Result<(), String> {
+    let p = std::path::Path::new(&path);
+    if !p.exists() {
+        return Err(format!("找不到这个文件：{}", path));
+    }
+    #[cfg(target_os = "windows")]
+    {
+        return shell_open(&path);
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        std::process::Command::new("sh")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+}
+
 /// 应用版本（来自 tauri.conf.json，构建时固化进二进制）
 #[tauri::command]
 fn app_version_cmd(app: tauri::AppHandle) -> String {
@@ -375,6 +428,8 @@ fn main() {
             open_path_cmd,
             app_version_cmd,
             save_text_file_cmd,
+            find_aggregator_launcher_cmd,
+            start_aggregator_cmd,
         ])
         // 关掉主窗口 = 彻底退出应用。
         // 否则"快速收录"浮球小窗会让进程留在后台（它无边框、不在任务栏，

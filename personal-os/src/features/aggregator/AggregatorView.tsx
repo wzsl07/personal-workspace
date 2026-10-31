@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Icon } from '../../ui/Icon';
-import { isTauri, openPath, saveTextFile } from '../../core/adapters/desktop';
+import { invoke, isTauri, openPath, saveTextFile } from '../../core/adapters/desktop';
 import { cloudBlockReason, cloudReady, loadConfig } from '../../core/adapters/ai';
 import { chatText } from '../../core/adapters/ai/openaiCompat';
 
@@ -29,6 +29,15 @@ function loadBase(): string {
     return localStorage.getItem('aggregator.base') || DEFAULT_BASE;
   } catch {
     return DEFAULT_BASE;
+  }
+}
+
+/** 聚合服务启动脚本的位置（桌面端用来一键拉起服务） */
+function loadLauncher(): string {
+  try {
+    return localStorage.getItem('aggregator.launcher') || '';
+  } catch {
+    return '';
   }
 }
 
@@ -123,6 +132,9 @@ export function AggregatorView() {
   const [summaryText, setSummaryText] = useState('');
   /** 打开原文失败时摆出来给人复制的地址 */
   const [openFail, setOpenFail] = useState('');
+  /** 启动脚本路径（桌面端可以一键拉起服务，省得去资源管理器里找） */
+  const [launcher, setLauncher] = useState(loadLauncher);
+  const [starting, setStarting] = useState(false);
 
   const api = useCallback(
     async (path: string, init?: RequestInit) => {
@@ -480,6 +492,55 @@ export function AggregatorView() {
     if (!ok) setMsg(`没能自动打开浏览器，请手动访问：${base}`);
   }
 
+  /** 没填过启动脚本位置时，让 Rust 在常见目录里找一次 */
+  useEffect(() => {
+    if (!isTauri() || launcher) return;
+    void (async () => {
+      try {
+        const found = await invoke<string | null>('find_aggregator_launcher_cmd');
+        if (found) {
+          setLauncher(found);
+          try {
+            localStorage.setItem('aggregator.launcher', found);
+          } catch {
+            /* 隐私模式，忽略 */
+          }
+        }
+      } catch {
+        /* 找不到就让用户在界面上手填 */
+      }
+    })();
+  }, [launcher]);
+
+  /** 一键启动聚合服务，然后反复探测直到它起来 */
+  async function startService() {
+    if (!launcher.trim()) {
+      setMsg('请先填启动脚本的路径（一般是 aggregator 目录下的「启动工作台.bat」）');
+      return;
+    }
+    setStarting(true);
+    setMsg('正在启动服务…');
+    try {
+      await invoke('start_aggregator_cmd', { path: launcher.trim() });
+    } catch (e) {
+      setStarting(false);
+      setMsg(`启动失败：${e instanceof Error ? e.message : String(e)}`);
+      return;
+    }
+    // 服务启动需要几秒，轮询等待而不是让用户自己再点一次「重试连接」
+    for (let i = 0; i < 12; i += 1) {
+      await new Promise((r) => setTimeout(r, 2000));
+      if (await check()) {
+        await loadSources();
+        setMsg('服务已启动');
+        setStarting(false);
+        return;
+      }
+    }
+    setStarting(false);
+    setMsg('等了 24 秒还是连不上 —— 看看那个黑窗口里有没有报错');
+  }
+
   function saveBase(v: string) {
     setBase(v);
     try {
@@ -518,6 +579,38 @@ export function AggregatorView() {
             <Icon name="RefreshCw" size={14} /> 重试连接
           </button>
         </div>
+
+        {isTauri() && (
+          <div className="rounded border border-line bg-panel p-3 space-y-2">
+            <div className="text-[13px] font-medium">或者，在这里直接启动它</div>
+            <div className="text-[11px] text-fg-dim">
+              下面是启动脚本的位置。一般不用改；如果你的项目放在别处，就改成那里的
+              「启动工作台.bat」。
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                className="field flex-1 font-mono text-[11px]"
+                value={launcher}
+                onChange={(e) => {
+                  setLauncher(e.target.value);
+                  try {
+                    localStorage.setItem('aggregator.launcher', e.target.value);
+                  } catch {
+                    /* 隐私模式，忽略 */
+                  }
+                }}
+                placeholder="...\aggregator\启动工作台.bat"
+              />
+              <button className="btn btn-primary" onClick={() => void startService()} disabled={starting}>
+                {starting ? '启动中…' : '▶ 启动聚合服务'}
+              </button>
+            </div>
+            <div className="text-[11px] text-fg-dim">
+              点了之后会开一个黑窗口（那就是服务在跑），关掉它就停止抓取。
+            </div>
+          </div>
+        )}
+
         <div className="text-[11px] text-fg-dim">
           注意：手机上用不了这个功能 —— 手机访问不到你电脑的 127.0.0.1。
         </div>
