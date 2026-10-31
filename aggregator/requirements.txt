@@ -1,0 +1,19 @@
+# 个人工作台 · 信息聚合模块 依赖
+# 安装（一条命令，在 aggregator 目录下执行）：
+#   python -m pip install -r requirements.txt
+# 国内如果很慢，加清华镜像：
+#   python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# 发 HTTP 请求（比标准库好用，自动处理 gzip/编码/连接池）
+requests>=2.32.0
+
+# 解析 RSS / Atom。选它是因为现实中的 feed 有大量不规范写法，
+# 自己用 xml.etree 写会不断踩坑，这个库已经替我们踩过十几年了。
+feedparser>=6.0.11
+
+# CSS 选择器提取（Step 3 的 html 类型要用）。自带 lxml / cssselect / w3lib。
+parsel>=1.9.0
+
+# 本地 Web 服务与界面（Step 4 起使用）
+fastapi>=0.115.0
+uvicorn>=0.32.0

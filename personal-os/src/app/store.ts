@@ -8,6 +8,7 @@ export type ViewKey =
   | 'calendar'
   | 'notes'
   | 'attachments'
+  | 'aggregator'
   | 'search'
   | 'graph'
   | 'settings';

@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>信息聚合 · 个人工作台</title>
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#fff; --line:#e3e6ea; --fg:#1c1f23; --dim:#6b7280;
+  --ok:#1d9e75; --warn:#ba7517; --bad:#e24b4a; --off:#9aa0a6; --accent:#185fa5;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#16181c; --panel:#1e2126; --line:#2c3036; --fg:#e6e8eb; --dim:#9aa1a9;
+    --accent:#7fb3e8;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:12px 18px;background:var(--panel);
+  border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+header h1{font-size:15px;margin:0;font-weight:600}
+.status{font-size:12px;color:var(--dim)}
+button{font:inherit;padding:5px 11px;border:1px solid var(--line);border-radius:6px;
+  background:var(--panel);color:var(--fg);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button.ghost{border-color:transparent;color:var(--dim);padding:4px 6px}
+button.sm{padding:3px 8px;font-size:12px}
+input,select,textarea{font:inherit;padding:5px 8px;border:1px solid var(--line);
+  border-radius:6px;background:var(--panel);color:var(--fg)}
+main{display:grid;grid-template-columns:340px 1fr;gap:16px;padding:16px;align-items:start}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;cursor:pointer}
+.card:hover{border-color:var(--accent)}
+.card.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(24,95,165,.18)}
+.card h3{margin:0 0 6px;font-size:14px;font-weight:600}
+.chip{display:inline-block;padding:2px 9px;border:1px solid var(--line);border-radius:12px;
+  font-size:12px;margin:5px 5px 0 0;cursor:pointer;color:var(--dim)}
+.chip:hover{border-color:var(--accent)}
+.chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.meta{font-size:12px;color:var(--dim)}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+.d-ok{background:var(--ok)}.d-degraded{background:var(--warn)}
+.d-failing{background:var(--bad)}.d-disabled{background:var(--off)}
+.d-unknown{background:var(--off)}
+.err{color:var(--bad);font-size:12px;margin-top:6px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.item{padding:10px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:none}
+.item a{color:var(--accent);text-decoration:none;font-weight:500}
+.item.unread a{font-weight:700}
+.tags{font-size:12px;color:var(--dim);margin-top:3px}
+.tag{display:inline-block;padding:1px 6px;border:1px solid var(--line);
+  border-radius:4px;margin-right:5px}
+.sum{font-size:12px;color:var(--dim);margin-top:4px}
+dialog{border:1px solid var(--line);border-radius:10px;padding:16px;max-width:640px;
+  width:92vw;background:var(--panel);color:var(--fg)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+label{display:block;font-size:12px;color:var(--dim);margin:8px 0 3px}
+textarea{width:100%;min-height:110px;font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.preview{max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:6px;
+  padding:8px;font-size:12px;margin-top:8px}
+.hint{font-size:12px;color:var(--dim);margin-top:6px}
+.warnbox{background:rgba(186,117,23,.12);border:1px solid var(--warn);border-radius:6px;
+  padding:8px;font-size:12px;margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>信息聚合</h1>
+  <span class="status" id="status">加载中…</span>
+  <div style="flex:1"></div>
+  <button class="primary" onclick="openNew()">＋ 新增来源</button>
+  <button onclick="exportOpml()">导出 OPML</button>
+  <button onclick="document.getElementById('opmlfile').click()">导入 OPML</button>
+  <input type="file" id="opmlfile" accept=".opml,.xml" hidden onchange="importOpml(this)">
+</header>
+
+<main>
+  <section>
+    <div id="sources"></div>
+  </section>
+  <section>
+    <div class="filters">
+      <button onclick="clearFilter()">全部</button>
+      <span class="status" id="curLabel">全部来源</span>
+      <div style="flex:1"></div>
+      <input id="fQ" placeholder="搜索标题/摘要" style="flex:1;min-width:120px">
+      <label style="margin:0;display:flex;gap:4px;align-items:center">
+        <input type="checkbox" id="fUnread"> 只看未读</label>
+      <label style="margin:0;display:flex;gap:4px;align-items:center">
+        <input type="checkbox" id="fStar"> 只看收藏</label>
+      <button onclick="loadItems()">刷新</button>
+    </div>
+    <div class="card" id="items"></div>
+  </section>
+</main>
+
+<dialog id="dlg"></dialog>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let SOURCES = [];
+let CUR_SRC = null;    // 当前选中的来源 id（null = 全部）
+let CUR_SEC = '';      // 当前选中的栏目（'' = 该来源全部栏目）
+
+async function api(path, opts){
+  const r = await fetch(path, opts);
+  const t = await r.text();
+  let j; try{ j = JSON.parse(t); }catch(e){ j = {raw:t}; }
+  if(!r.ok) throw new Error(j.detail || j.error || j.reason || ('HTTP '+r.status));
+  return j;
+}
+const esc = (s) => (s==null?'':String(s)).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = (t) => t ? String(t).slice(0,16).replace('T',' ') : '';
+
+/* ---------------- 来源列表 ---------------- */
+async function loadSources(){
+  SOURCES = await api('/api/sources');
+  const st = await api('/api/status');
+  $('status').textContent = `${st.sources} 个来源（${st.enabled} 个启用）· ${st.items} 条内容 · 调度器${st.scheduler==='running'?'运行中':'已停止'}`;
+  renderSources();
+}
+
+function renderSources(){
+  $('sources').innerHTML = SOURCES.map(s => {
+    const on = CUR_SRC === s.id;
+    return `
+    <div class="card ${on?'active':''}" onclick="selectSource(${s.id})">
+      <h3><span class="dot d-${s.health}"></span>${esc(s.name)}</h3>
+      <div class="meta">${esc(s.type)} · ${s.item_count} 条 · 每 ${Math.round(s.interval_sec/60)} 分钟</div>
+      <div class="meta">上次抓取：${fmt(s.last_fetched_at) || '从未'}${s.enabled?'':' · 已暂停'}</div>
+      ${on && s.sections.length ? `<div>${s.sections.map(x =>
+        `<span class="chip ${CUR_SEC===(x.name||'')?'on':''}" onclick="event.stopPropagation();selectSection('${esc(x.name)}')">${esc(x.name||'未命名')} ${x.count}</span>`).join('')}</div>` : ''}
+      ${s.last_error ? `<div class="err">${esc(s.last_error)}</div>` : ''}
+      <div class="row">
+        <button class="sm" onclick="event.stopPropagation();fetchNow(${s.id})">立即抓取</button>
+        <button class="sm" onclick="event.stopPropagation();openEdit(${s.id})">编辑规则</button>
+        <button class="sm" onclick="event.stopPropagation();toggleEnabled(${s.id},${s.enabled?0:1})">${s.enabled?'暂停':'启用'}</button>
+        <button class="sm" onclick="event.stopPropagation();showRuns(${s.id})">日志</button>
+        <button class="sm" onclick="event.stopPropagation();delSource(${s.id})">删除</button>
+      </div>
+    </div>`;
+  }).join('') || '<div class="card" onclick="openNew()">还没有来源，点这里新增一个。</div>';
+
+  const cur = SOURCES.find(s => s.id === CUR_SRC);
+  $('curLabel').textContent = cur
+    ? (CUR_SEC ? `${cur.name} · ${CUR_SEC}` : cur.name + '（全部栏目）')
+    : '全部来源';
+}
+
+/* 点侧边栏的来源卡片 = 主界面立刻只显示它的内容 */
+function selectSource(id){
+  CUR_SRC = (CUR_SRC === id) ? null : id;   // 再点一次回到全部
+  CUR_SEC = '';
+  renderSources(); loadItems();
+}
+
+/* 选中来源后，再点栏目 chip 细分 */
+function selectSection(name){
+  CUR_SEC = (CUR_SEC === name) ? '' : name;
+  renderSources(); loadItems();
+}
+
+function clearFilter(){
+  CUR_SRC = null; CUR_SEC = ''; $('fQ').value = '';
+  $('fUnread').checked = false; $('fStar').checked = false;
+  renderSources(); loadItems();
+}
+
+/* ---------------- 条目流 ---------------- */
+async function loadItems(){
+  const p = new URLSearchParams();
+  if(CUR_SRC) p.set('source_id', CUR_SRC);
+  if(CUR_SEC) p.set('section', CUR_SEC);
+  if($('fQ').value) p.set('q', $('fQ').value);
+  if($('fUnread').checked) p.set('only_unread','1');
+  if($('fStar').checked) p.set('only_starred','1');
+  p.set('limit','80');
+  const items = await api('/api/items?' + p.toString());
+  $('items').innerHTML = items.length ? items.map(it => `
+    <div class="item ${it.read_at?'':'unread'}">
+      <a href="${esc(it.url)}" target="_blank" rel="noopener noreferrer"
+         onclick="markRead(${it.id})">${esc(it.title)}</a>
+      <div class="tags">
+        <span class="tag">${esc(it.source_name)}</span>
+        ${it.section?`<span class="tag">${esc(it.section)}</span>`:''}
+        ${fmt(it.published_at)||fmt(it.discovered_at)}
+      </div>
+      ${it.summary?`<div class="sum">${esc(it.summary.slice(0,140))}</div>`:''}
+      <div class="row">
+        <button class="sm" onclick="setStar(${it.id},${it.starred?0:1})">${it.starred?'★ 已收藏':'☆ 收藏'}</button>
+        <button class="sm" onclick="setRead(${it.id},${it.read_at?0:1})">${it.read_at?'标为未读':'标为已读'}</button>
+      </div>
+    </div>`).join('') : '<div class="meta">没有符合条件的条目。</div>';
+}
+
+async function markRead(id){ try{ await api(`/api/items/${id}/state`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({read:true})}); }catch(e){} }
+async function setRead(id,v){ await api(`/api/items/${id}/state`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({read:!!v})}); loadItems(); }
+async function setStar(id,v){ await api(`/api/items/${id}/state`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({starred:!!v})}); loadItems(); }
+
+/* ---------------- 来源操作 ---------------- */
+async function fetchNow(id){
+  const r = await api(`/api/sources/${id}/fetch`,{method:'POST'});
+  alert(r.ok ? `抓到 ${r.found} 条，新增 ${r.new} 条` : ('失败：' + (r.error||'未知原因')));
+  loadSources(); loadItems();
+}
+async function toggleEnabled(id,v){
+  await api(`/api/sources/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:!!v})});
+  loadSources();
+}
+async function delSource(id){
+  if(!confirm('删除这个来源？它的条目会一起删掉。')) return;
+  await api(`/api/sources/${id}`,{method:'DELETE'}); loadSources(); loadItems();
+}
+async function showRuns(id){
+  const runs = await api(`/api/sources/${id}/runs?limit=15`);
+  $('dlg').innerHTML = `<h3>抓取日志</h3>` + (runs.length ? runs.map(r=>`
+    <div class="meta">${fmt(r.started_at)} · ${esc(r.status)} · HTTP ${r.http_status??'-'} ·
+      ${r.duration_ms}ms · 找到 ${r.items_found} 新增 ${r.items_new}
+      ${r.error_message?`<div class="err">${esc(r.error_message)}</div>`:''}</div>`).join('<hr>')
+    : '<div class="meta">还没有记录。</div>') +
+    `<div class="row"><button onclick="$('dlg').close()">关闭</button></div>`;
+  $('dlg').showModal();
+}
+
+/* ---------------- 新增来源：粘贴网址 → 探测 → 保存 ---------------- */
+function openNew(){
+  $('dlg').innerHTML = `
+    <h3>新增来源</h3>
+    <div class="hint">只填网址就行，系统会依次尝试 RSS 自动发现 → 常见 feed 路径 → JSON Feed → 自动分析网页结构。</div>
+    <label>网址</label>
+    <input id="nUrl" style="width:100%" placeholder="https://example.com/index.htm">
+    <div class="row"><button class="primary" onclick="doDetect()">探测</button></div>
+    <div id="nResult"></div>`;
+  $('dlg').showModal();
+}
+
+async function doDetect(){
+  const url = $('nUrl').value.trim();
+  if(!url) return;
+  $('nResult').innerHTML = '<div class="meta">探测中…</div>';
+  let r;
+  try{ r = await api('/api/detect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})}); }
+  catch(e){ $('nResult').innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
+  if(!r.ok){ $('nResult').innerHTML = `<div class="err">自动探测失败：${esc(r.reason)}</div>`; return; }
+  window._det = r;
+  $('nResult').innerHTML = `
+    <div class="warnbox">识别为 <b>${esc(r.type)}</b>${r.note?'（'+esc(r.note)+'）':''} · 置信度 ${esc(r.confidence)}</div>
+    <label>名称</label><input id="nName" style="width:100%" value="${esc(r.url)}">
+    <label>抓取间隔（分钟，最小 5）</label><input id="nInterval" type="number" value="15" style="width:100px">
+    <label>标签（逗号分隔，可留空）</label><input id="nTags" style="width:100%" placeholder="学校,通知">
+    <label>解析规则（自动生成的，可以改）</label>
+    <textarea id="nCfg">${esc(JSON.stringify(r.parser_config,null,2))}</textarea>
+    <div class="row"><button onclick="saveNew()">保存并抓一次</button></div>
+    <div class="preview">${(r.preview||[]).map((p,i)=>
+      `${i+1}. ${esc(p.title)}${p.section?' ['+esc(p.section)+']':''}<br><span class="meta">${esc(p.url)}</span>`).join('<br>')}</div>`;
+}
+
+async function saveNew(){
+  const r = window._det;
+  let cfg; try{ cfg = JSON.parse($('nCfg').value); }catch(e){ alert('规则不是合法 JSON'); return; }
+  const body = {
+    name: $('nName').value.trim() || r.url,
+    url: r.url,
+    type: r.type,
+    parser_config: cfg,
+    interval_sec: Math.max(300, (parseInt($('nInterval').value)||15)*60),
+    tags: $('nTags').value.trim(),
+  };
+  try{
+    const s = await api('/api/sources',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    $('dlg').close(); loadSources();
+    await fetchNow(s.id);
+  }catch(e){ alert('保存失败：'+e.message); }
+}
+
+/* ---------------- 编辑规则 + 测试预览 ---------------- */
+async function openEdit(id){
+  const s = await api('/api/sources/'+id);
+  window._edit = s;
+  $('dlg').innerHTML = `
+    <h3>${esc(s.name)}</h3>
+    <label>名称</label><input id="eName" style="width:100%" value="${esc(s.name)}">
+    <label>网址</label><input id="eUrl" style="width:100%" value="${esc(s.url)}">
+    <label>间隔（分钟，最小 5）</label><input id="eInterval" type="number" value="${Math.round(s.interval_sec/60)}" style="width:100px">
+    <label>标签</label><input id="eTags" style="width:100%" value="${esc(s.tags)}">
+    <label>解析规则</label><textarea id="eCfg">${esc(JSON.stringify(s.parser_config,null,2))}</textarea>
+    <div class="row">
+      <button class="primary" onclick="testCfg(${id})">测试（不入库）</button>
+      <button onclick="saveEdit(${id})">保存</button>
+      <button onclick="openDetectFor(${id})">重新自动探测</button>
+    </div>
+    <div id="eResult"></div>`;
+  $('dlg').showModal();
+}
+
+async function testCfg(id){
+  $('eResult').innerHTML = '<div class="meta">测试中…</div>';
+  let cfg; try{ cfg = JSON.parse($('eCfg').value); }catch(e){ $('eResult').innerHTML='<div class="err">规则不是合法 JSON</div>'; return; }
+  await api(`/api/sources/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({parser_config:cfg,url:$('eUrl').value.trim()})});
+  let r; try{ r = await api(`/api/sources/${id}/test`,{method:'POST'}); }
+  catch(e){ $('eResult').innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
+  if(!r.ok){ $('eResult').innerHTML = `<div class="err">${esc(r.error||'失败')}</div>`; return; }
+  $('eResult').innerHTML = `<div class="warnbox">抽出 ${r.count} 条 · HTTP ${r.http_status} · ${r.duration_ms}ms · ${(r.bytes/1024).toFixed(0)}KB
+    ${r.sections.length?' · 栏目：'+r.sections.map(esc).join(' / '):''}</div>
+    ${(r.warnings||[]).map(w=>`<div class="err">${esc(w)}</div>`).join('')}
+    <div class="preview">${(r.items||[]).map((p,i)=>
+      `${i+1}. ${esc(p.title)} ${p.published_at?'<span class="meta">'+fmt(p.published_at)+'</span>':''}${p.section?' ['+esc(p.section)+']':''}`).join('<br>')}</div>`;
+}
+
+async function saveEdit(id){
+  let cfg; try{ cfg = JSON.parse($('eCfg').value); }catch(e){ alert('规则不是合法 JSON'); return; }
+  await api(`/api/sources/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:$('eName').value.trim(), url:$('eUrl').value.trim(),
+      interval_sec:Math.max(300,(parseInt($('eInterval').value)||15)*60),
+      tags:$('eTags').value.trim(), parser_config:cfg})});
+  $('dlg').close(); loadSources(); loadItems();
+}
+
+async function openDetectFor(id){
+  const s = window._edit;
+  $('eResult').innerHTML = '<div class="meta">探测中…</div>';
+  const r = await api('/api/detect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:$('eUrl').value.trim()||s.url})});
+  if(!r.ok){ $('eResult').innerHTML = `<div class="err">${esc(r.reason)}</div>`; return; }
+  $('eCfg').value = JSON.stringify(r.parser_config,null,2);
+  $('eResult').innerHTML = `<div class="warnbox">已填入新规则（${esc(r.type)}），点「测试」看看效果。</div>`;
+}
+
+/* ---------------- OPML ---------------- */
+function exportOpml(){ window.location = '/api/opml'; }
+async function importOpml(input){
+  const f = input.files[0]; if(!f) return;
+  const text = await f.text();
+  const r = await api('/api/opml',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:text})});
+  alert(`导入完成：新增 ${r.added} 个，跳过 ${r.skipped} 个`);
+  input.value=''; loadSources(); loadItems();
+}
+
+/* 支持用网址直接打开某个来源/栏目，例如 /?src=4&sec=政策文件
+   —— 既能收藏深链，也方便命令行里验证切换逻辑 */
+(function(){
+  const q = new URLSearchParams(location.search);
+  if(q.get('src')) CUR_SRC = parseInt(q.get('src'), 10) || null;
+  if(q.get('sec')) CUR_SEC = q.get('sec');
+})();
+
+loadSources(); loadItems();
+</script>
+</body>
+</html>

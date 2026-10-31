@@ -15,17 +15,21 @@ import { AttachmentsView } from './features/attachments/AttachmentsView';
 import { QuickBall } from './features/quick/QuickBall';
 import { SyncIndicator } from './features/sync/SyncIndicator';
 import { GraphView } from './features/graph/GraphView';
+import { AggregatorView } from './features/aggregator/AggregatorView';
+import { isTauri } from './core/adapters/desktop';
 import { startScheduler } from './core/notify/scheduler';
 import * as sourceRepo from './core/repo/sourceRepo';
 import * as draftRepo from './core/repo/draftRepo';
 
-const NAV: { key: ViewKey; label: string; icon: string }[] = [
+const NAV: { key: ViewKey; label: string; icon: string; desktopOnly?: boolean }[] = [
   { key: 'today', label: '今日', icon: 'Sun' },
   { key: 'inbox', label: '收集箱', icon: 'Inbox' },
   { key: 'drafts', label: '草稿箱', icon: 'Sparkles' },
   { key: 'calendar', label: '日历', icon: 'CalendarDays' },
   { key: 'notes', label: '知识库', icon: 'NotebookText' },
   { key: 'attachments', label: '附件', icon: 'FileText' },
+  // 信息流要读本机的聚合服务，手机上访问不到，所以只在桌面版出现
+  { key: 'aggregator', label: '信息流', icon: 'Rss', desktopOnly: true },
   { key: 'search', label: '搜索', icon: 'Search' },
   { key: 'graph', label: '图谱', icon: 'Network' },
   { key: 'settings', label: '设置', icon: 'Settings' },
@@ -115,7 +119,7 @@ export default function App() {
           <span className="text-sm font-medium">个人工作台</span>
         </div>
         <nav className="flex-1 p-2 space-y-0.5">
-          {NAV.map((n) => (
+          {NAV.filter((n) => !n.desktopOnly || isTauri()).map((n) => (
             <button
               key={n.key}
               onClick={() => setView(n.key)}
@@ -197,6 +201,7 @@ export default function App() {
             </div>
           )}
           {view === 'graph' && <GraphView />}
+          {view === 'aggregator' && <AggregatorView />}
           {view === 'settings' && (
             <div className="h-full overflow-y-auto">
               <SettingsView />

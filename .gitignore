@@ -52,3 +52,8 @@ Thumbs.db
 .backup-identifier-migration/
 # 线上发布标记文件（含 appId）
 *.genie
+
+# 信息聚合模块：本地数据与 Python 缓存不入库
+aggregator/data/
+aggregator/**/__pycache__/
+__pycache__/

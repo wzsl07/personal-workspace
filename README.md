@@ -17,6 +17,7 @@ AI 解析和跨设备同步是**可选插件**：不开就完全离线，开了�
 | 路径 | 内容 |
 |---|---|
 | [`personal-os/`](personal-os/) | **项目源码**（前端 + Tauri 桌面壳） |
+| [`aggregator/`](aggregator/) | **信息聚合**：订阅 RSS / JSON / 网页公告，定时抓取、按栏目分类浏览 |
 | [`docs/`](docs/) | 文档：安装指南、故障排查、同步配置、隐私说明、更新日志 |
 
 **完整的使用说明、安装步骤、输入输出示例在 [`personal-os/README.md`](personal-os/README.md)。**
@@ -42,6 +43,19 @@ npm run model:setup  # 下载中文向量模型，国内镜像优先
 ```bash
 npm run tauri:build
 ```
+
+## 信息聚合（可选）
+
+`aggregator/` 是一个独立的 Python 小服务：订阅 RSS / JSON 接口 / 普通网页，
+定时抓取并按网页自身的栏目分类存进 SQLite。桌面版的「信息流」页会读取它。
+
+```bash
+cd aggregator
+python -m pip install -r requirements.txt
+python main.py          # 自动打开 http://127.0.0.1:8787
+```
+
+它只监听本机，不对外暴露；手机访问不到，所以「信息流」只在桌面版出现。
 
 ## 技术栈
 

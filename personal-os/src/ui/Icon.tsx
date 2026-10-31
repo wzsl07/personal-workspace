@@ -30,6 +30,7 @@ import {
   ShieldCheck,
   WifiOff,
   RefreshCw,
+  Rss,
   FolderOpen,
   ExternalLink,
   FileUp,
@@ -44,6 +45,7 @@ import {
 
 const ICONS: Record<string, LucideIcon> = {
   CheckSquare,
+  Rss,
   Circle,
   FileText,
   GraduationCap,
