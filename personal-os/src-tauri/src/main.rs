@@ -170,13 +170,26 @@ fn data_dir_cmd(app: tauri::AppHandle) -> Result<String, String> {
 
 /// 用系统文件管理器打开某个目录（Windows: explorer；macOS: open；Linux: xdg-open）
 #[tauri::command]
+/// 用系统默认程序打开一个路径或网址。
+///
+/// 网址必须走 `cmd /c start`：`explorer <url>` 在某些情况下不弹浏览器
+/// （实测过：从桌面应用里 spawn 时点了没反应），而 start 是 shell 的
+/// 关联打开，行为跟双击一样可靠。
 fn open_path_cmd(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("explorer")
-            .arg(&path)
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        let is_url = path.starts_with("http://") || path.starts_with("https://");
+        if is_url {
+            std::process::Command::new("cmd")
+                .args(["/c", "start", "", &path])
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        } else {
+            std::process::Command::new("explorer")
+                .arg(&path)
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        }
     }
     #[cfg(target_os = "macos")]
     {

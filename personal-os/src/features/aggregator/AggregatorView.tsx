@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Icon } from '../../ui/Icon';
-import { isTauri, openPath } from '../../core/adapters/desktop';
+import { isTauri, openPath, saveTextFile } from '../../core/adapters/desktop';
 
 /**
  * 信息流：读取本机的「信息聚合」服务（Python，默认 http://127.0.0.1:8787）。
@@ -9,6 +9,12 @@ import { isTauri, openPath } from '../../core/adapters/desktop';
  * 定时抓取需要一个常驻进程，浏览器（含 PWA）关掉就不跑了；
  * 而且绝大多数站点不给 CORS 头，前端直连必然失败。所以抓取交给那个服务，
  * 这里只负责展示。
+ *
+ * 为什么来源管理也做在这个页面里（而不是跳到浏览器）：
+ * 1. Tauri 的 WebView 不处理 <a target="_blank">，点了没反应；
+ * 2. 靠系统默认程序打开也不稳（explorer 传 URL 未必弹浏览器）；
+ * 3. 更根本的是——能在一个界面里做完的事，就不该让人换窗口。
+ *    所以新增 / 编辑规则 / 启停 / 日志 / 删除全都在这里完成。
  *
  * 因此**只有桌面版能用到它**（手机上访问不到你电脑的 127.0.0.1），
  * 服务没启动时要给出清楚的说明，而不是白屏或报错。
@@ -28,11 +34,16 @@ interface AggSource {
   id: number;
   name: string;
   type: string;
+  url: string;
   enabled: boolean;
   health: string;
+  health_text?: string;
+  isolated?: boolean;
+  interval_sec: number;
   item_count: number;
   last_fetched_at: string | null;
   last_error: string | null;
+  parser_config?: unknown;
   sections: { name: string; count: number }[];
 }
 
@@ -50,6 +61,16 @@ interface AggItem {
   starred: boolean;
 }
 
+interface RunRow {
+  started_at: string;
+  status: string;
+  http_status: number | null;
+  duration_ms: number | null;
+  items_found: number;
+  items_new: number;
+  error_message: string | null;
+}
+
 const HEALTH: Record<string, string> = {
   ok: 'bg-emerald-500',
   degraded: 'bg-amber-500',
@@ -58,9 +79,17 @@ const HEALTH: Record<string, string> = {
   unknown: 'bg-gray-400',
 };
 
+const HEALTH_TEXT: Record<string, string> = {
+  ok: '正常',
+  degraded: '降级',
+  failing: '失败',
+  disabled: '已暂停',
+  unknown: '未知',
+};
+
 export function AggregatorView() {
   const [base, setBase] = useState(loadBase);
-  const [online, setOnline] = useState<boolean | null>(null);   // null=检查中
+  const [online, setOnline] = useState<boolean | null>(null);
   const [sources, setSources] = useState<AggSource[]>([]);
   const [items, setItems] = useState<AggItem[]>([]);
   const [cur, setCur] = useState<number | null>(null);
@@ -71,11 +100,28 @@ export function AggregatorView() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
 
+  /** 内嵌面板：null | 'edit' | 'runs' | 'new' | 'opml' */
+  const [panel, setPanel] = useState<null | 'edit' | 'runs' | 'new' | 'opml'>(null);
+  const [cfgText, setCfgText] = useState('');
+  const [testOut, setTestOut] = useState('');
+  const [runs, setRuns] = useState<RunRow[]>([]);
+
+  /** 新增来源表单 */
+  const [newUrl, setNewUrl] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newTags, setNewTags] = useState('');
+  const [newInterval, setNewInterval] = useState('15');
+  const [newCfg, setNewCfg] = useState('');
+  const [newType, setNewType] = useState('');
+  const [newPreview, setNewPreview] = useState<{ title: string }[]>([]);
+  const [opmlText, setOpmlText] = useState('');
+
   const api = useCallback(
     async (path: string, init?: RequestInit) => {
       const res = await fetch(`${base}${path}`, init);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
+      const ct = res.headers.get('content-type') || '';
+      return ct.includes('application/json') ? res.json() : res.text();
     },
     [base],
   );
@@ -126,6 +172,10 @@ export function AggregatorView() {
     if (online) void loadItems();
   }, [online, loadItems]);
 
+  const curSource = sources.find((s) => s.id === cur) ?? null;
+
+  /* ---------------- 条目状态 ---------------- */
+
   async function setState(item: AggItem, patch: { read?: boolean; starred?: boolean }) {
     try {
       await api(`/api/items/${item.id}/state`, {
@@ -139,11 +189,13 @@ export function AggregatorView() {
     }
   }
 
+  /* ---------------- 来源操作 ---------------- */
+
   async function fetchNow(id: number) {
     setMsg('抓取中…');
     try {
       const r = await api(`/api/sources/${id}/fetch`, { method: 'POST' });
-      setMsg(`找到 ${r.found} 条，新增 ${r.new} 条`);
+      setMsg(r.not_modified ? '内容没有变化（304），已跳过' : `找到 ${r.found} 条，新增 ${r.new} 条`);
       await loadSources();
       await loadItems();
     } catch {
@@ -151,17 +203,41 @@ export function AggregatorView() {
     }
   }
 
-  /** 删除当前选中的来源（连带它的条目一起删）。 */
+  async function retry(id: number) {
+    setMsg('重试中…');
+    try {
+      await api(`/api/sources/${id}/retry`, { method: 'POST' });
+      setMsg('已清零失败计数并重新启用');
+      await loadSources();
+    } catch {
+      setMsg('重试失败');
+    }
+  }
+
+  async function toggleEnabled(id: number, enabled: boolean) {
+    try {
+      await api(`/api/sources/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      });
+      setMsg(enabled ? '已启用' : '已暂停');
+      await loadSources();
+    } catch {
+      setMsg('操作失败');
+    }
+  }
+
   async function delSource(id: number) {
     const s = sources.find((x) => x.id === id);
     const label = s ? `「${s.name}」` : '这个来源';
-    // 桌面壳里 confirm 是可用的；真出问题时也有下面这句兜底提示。
     if (!window.confirm(`删除${label}？它的条目会一起删掉，不可恢复。`)) return;
     setMsg('删除中…');
     try {
       await api(`/api/sources/${id}`, { method: 'DELETE' });
       setCur(null);
       setSec('');
+      setPanel(null);
       await loadSources();
       await loadItems();
       setMsg(`已删除${label}`);
@@ -170,12 +246,169 @@ export function AggregatorView() {
     }
   }
 
-  /** 用系统默认浏览器打开聚合服务页面（新增/编辑/删除来源都在那边）。 */
+  /* ---------------- 编辑规则 ---------------- */
+
+  function openEdit(s: AggSource) {
+    setCfgText(JSON.stringify(s.parser_config ?? { version: 1 }, null, 2));
+    setTestOut('');
+    setPanel('edit');
+  }
+
+  async function testCfg(id: number, text: string, apply: boolean) {
+    setMsg(apply ? '保存并测试中…' : '测试中…');
+    try {
+      if (apply) {
+        const cfg = JSON.parse(text);
+        await api(`/api/sources/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ parser_config: cfg }),
+        });
+      }
+      const r = await api(`/api/sources/${id}/test`, { method: 'POST' });
+      if (!r.ok) {
+        setTestOut(`失败：${r.error ?? '未知原因'}`);
+      } else {
+        const lines = [
+          `抽出 ${r.count} 条 · HTTP ${r.http_status} · ${r.duration_ms}ms · ${r.bytes} 字节`,
+          r.sections?.length ? `栏目：${r.sections.join('、')}` : '',
+          ...(r.items ?? []).slice(0, 5).map((it: { title: string }) => `· ${it.title}`),
+        ];
+        setTestOut(lines.filter(Boolean).join('\n'));
+      }
+      setMsg(apply ? '规则已保存' : '测试完成');
+      await loadSources();
+      await loadItems();
+    } catch (e) {
+      setTestOut(`出错：${e instanceof Error ? e.message : String(e)}`);
+      setMsg('');
+    }
+  }
+
+  /* ---------------- 日志 ---------------- */
+
+  async function openRuns(id: number) {
+    setPanel('runs');
+    try {
+      setRuns(await api(`/api/sources/${id}/runs?limit=15`));
+    } catch {
+      setRuns([]);
+    }
+  }
+
+  /* ---------------- 新增来源 ---------------- */
+
+  async function doDetect() {
+    if (!newUrl.trim()) return;
+    setMsg('探测中…');
+    try {
+      // 先做安全预检：内网地址当场说清楚，别让人猜
+      const chk = await api('/api/security/check-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: newUrl.trim(), check_robots: false }),
+      });
+      if (chk && chk.safe === false) {
+        setMsg(`这个网址不能用：${chk.reason}`);
+        return;
+      }
+      const r = await api('/api/detect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: newUrl.trim() }),
+      });
+      if (!r.ok) {
+        setMsg(`自动探测失败：${r.reason ?? '未知原因'}`);
+        return;
+      }
+      setNewType(r.type);
+      setNewCfg(JSON.stringify(r.parser_config ?? {}, null, 2));
+      setNewName(r.url || newUrl.trim());
+      setNewPreview(r.preview ?? []);
+      setMsg(`识别为 ${r.type}，确认后点保存`);
+    } catch {
+      setMsg('探测失败，聚合服务可能已停止');
+    }
+  }
+
+  async function saveNew() {
+    if (!newUrl.trim()) return;
+    setMsg('保存中…');
+    try {
+      const body: Record<string, unknown> = {
+        url: newUrl.trim(),
+        name: newName.trim() || newUrl.trim(),
+      };
+      if (newType) body.type = newType;
+      if (newCfg.trim()) {
+        try {
+          body.parser_config = JSON.parse(newCfg);
+        } catch {
+          setMsg('规则 JSON 格式不对，请检查后再保存');
+          return;
+        }
+      }
+      body.interval_sec = Math.max(5, Number(newInterval) || 15) * 60;
+      body.tags = newTags.trim();
+      const s = await api('/api/sources', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      setPanel(null);
+      setNewUrl('');
+      setNewName('');
+      setNewTags('');
+      setNewCfg('');
+      setNewType('');
+      setNewPreview([]);
+      await loadSources();
+      if (s?.id) await fetchNow(s.id);
+      setMsg('已添加并抓取了一次');
+    } catch {
+      setMsg('保存失败');
+    }
+  }
+
+  /* ---------------- OPML ---------------- */
+
+  async function exportOpml() {
+    try {
+      const xml = await api('/api/opml');
+      const text = typeof xml === 'string' ? xml : String(xml);
+      // 桌面端不能用浏览器下载（Blob + a[download] 在 WebView 里会被吞掉），
+      // 必须走原生「另存为」对话框。
+      const saved = await saveTextFile('sources.opml', text);
+      if (saved) setMsg(`已导出到：${saved}`);
+      else if (saved === false) setMsg('导出失败或已取消');
+      else setMsg('已导出');
+    } catch {
+      setMsg('导出失败');
+    }
+  }
+
+  async function importOpml() {
+    if (!opmlText.trim()) return;
+    setMsg('导入中…');
+    try {
+      const r = await api('/api/opml', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: opmlText }),
+      });
+      setOpmlText('');
+      setPanel(null);
+      await loadSources();
+      setMsg(`导入完成：新增 ${r.added} 个，跳过 ${r.skipped} 个（已存在的会跳过）`);
+    } catch {
+      setMsg('导入失败');
+    }
+  }
+
+  /** 兜底：真需要用浏览器打开时走系统默认程序 */
   async function openManage() {
     const ok = await openPath(base);
-    if (!ok) {
-      setMsg(`没能自动打开浏览器，请手动访问：${base}`);
-    }
+    if (!ok) setMsg(`没能自动打开浏览器，请手动访问：${base}`);
   }
 
   function saveBase(v: string) {
@@ -223,8 +456,6 @@ export function AggregatorView() {
     );
   }
 
-  const curSource = sources.find((s) => s.id === cur);
-
   return (
     <div className="flex h-full">
       {/* 左：来源列表，点一下主界面就切成它的内容 */}
@@ -236,6 +467,7 @@ export function AggregatorView() {
           onClick={() => {
             setCur(null);
             setSec('');
+            setPanel(null);
           }}
         >
           全部来源
@@ -249,6 +481,7 @@ export function AggregatorView() {
               onClick={() => {
                 setCur(cur === s.id ? null : s.id);
                 setSec('');
+                setPanel(null);
               }}
             >
               <div className="flex items-center gap-1.5">
@@ -257,7 +490,8 @@ export function AggregatorView() {
                 <span className="text-[11px] text-fg-dim ml-auto">{s.item_count}</span>
               </div>
               <div className="text-[11px] text-fg-dim">
-                {s.type} · 上次 {s.last_fetched_at ? s.last_fetched_at.slice(5, 16).replace('T', ' ') : '从未'}
+                {s.type} · 上次{' '}
+                {s.last_fetched_at ? s.last_fetched_at.slice(5, 16).replace('T', ' ') : '从未'}
               </div>
             </button>
             {cur === s.id && s.sections.length > 0 && (
@@ -277,12 +511,21 @@ export function AggregatorView() {
             )}
           </div>
         ))}
+        <button
+          className="w-full text-left px-2 py-1.5 rounded text-[12px] text-accent border border-dashed border-line"
+          onClick={() => {
+            setPanel(panel === 'new' ? null : 'new');
+            setCur(null);
+          }}
+        >
+          + 新增来源
+        </button>
         {sources.length === 0 && online && (
-          <div className="text-[11px] text-fg-dim px-2">还没有来源，去聚合页面添加。</div>
+          <div className="text-[11px] text-fg-dim px-2">还没有来源，点上面添加一个。</div>
         )}
       </div>
 
-      {/* 右：时间流 */}
+      {/* 右：管理面板 + 时间流 */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           <h2 className="text-sm font-medium mr-1">
@@ -295,48 +538,251 @@ export function AggregatorView() {
             onChange={(e) => setQ(e.target.value)}
           />
           <label className="text-[11px] text-fg-muted flex items-center gap-1">
-            <input type="checkbox" checked={onlyUnread} onChange={(e) => setOnlyUnread(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={onlyUnread}
+              onChange={(e) => setOnlyUnread(e.target.checked)}
+            />
             未读
           </label>
           <label className="text-[11px] text-fg-muted flex items-center gap-1">
-            <input type="checkbox" checked={onlyStarred} onChange={(e) => setOnlyStarred(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={onlyStarred}
+              onChange={(e) => setOnlyStarred(e.target.checked)}
+            />
             收藏
           </label>
           <button className="btn text-xs" onClick={() => void loadItems()} disabled={busy}>
             <Icon name="RefreshCw" size={13} /> 刷新
           </button>
-          {cur && (
-            <button className="btn text-xs" onClick={() => void fetchNow(cur)}>
-              <Icon name="Download" size={13} /> 抓这个源
-            </button>
-          )}
-          {cur && (
-            <button className="btn text-xs" onClick={() => void delSource(cur)}>
-              <Icon name="Trash2" size={13} /> 删这个源
-            </button>
-          )}
-          {/*
-            Tauri 的 WebView 里 <a target="_blank"> 打不开外部浏览器（点了没反应），
-            必须走系统默认程序。网页版里没有 isTauri()，就退回普通链接。
-          */}
-          {isTauri() ? (
+          {isTauri() && (
             <button className="btn text-xs btn-ghost" onClick={() => void openManage()}>
-              管理来源 <Icon name="ExternalLink" size={12} />
+              在浏览器中打开 <Icon name="ExternalLink" size={12} />
             </button>
-          ) : (
-            <a
-              className="btn text-xs btn-ghost"
-              href={base}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              管理来源 <Icon name="ExternalLink" size={12} />
-            </a>
           )}
         </div>
 
         {msg && <div className="text-[11px] text-fg-muted mb-2">{msg}</div>}
 
+        {/* ---------- 选中来源后的操作区 ---------- */}
+        {curSource && (
+          <div className="rounded border border-line bg-panel p-3 mb-3">
+            <div className="flex items-start gap-2">
+              <span
+                className={`w-2 h-2 mt-1.5 rounded-full ${HEALTH[curSource.health] ?? 'bg-gray-400'}`}
+              />
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-medium truncate">{curSource.name}</div>
+                <div className="text-[11px] text-fg-dim">
+                  {curSource.type} · {curSource.item_count} 条 · 每{' '}
+                  {Math.round(curSource.interval_sec / 60)} 分钟
+                </div>
+                <div className="text-[11px] text-fg-dim">
+                  {HEALTH_TEXT[curSource.health] ?? curSource.health}
+                  {curSource.health_text ? ` — ${curSource.health_text}` : ''}
+                </div>
+                <div className="text-[11px] text-fg-dim truncate">{curSource.url}</div>
+                {curSource.last_error && (
+                  <div className="text-[11px] text-red-500 mt-0.5">{curSource.last_error}</div>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <button className="btn text-xs" onClick={() => void fetchNow(curSource.id)}>
+                <Icon name="Download" size={13} /> 立即抓取
+              </button>
+              <button className="btn text-xs" onClick={() => openEdit(curSource)}>
+                <Icon name="Settings" size={13} /> 编辑规则
+              </button>
+              <button
+                className="btn text-xs"
+                onClick={() => void toggleEnabled(curSource.id, !curSource.enabled)}
+              >
+                {curSource.enabled ? '暂停' : '启用'}
+              </button>
+              <button className="btn text-xs" onClick={() => void openRuns(curSource.id)}>
+                <Icon name="FileText" size={13} /> 日志
+              </button>
+              {curSource.isolated && (
+                <button className="btn text-xs" onClick={() => void retry(curSource.id)}>
+                  <Icon name="RefreshCw" size={13} /> 重试（解除暂停）
+                </button>
+              )}
+              <button className="btn text-xs" onClick={() => void delSource(curSource.id)}>
+                <Icon name="Trash2" size={13} /> 删除
+              </button>
+            </div>
+
+            {/* 编辑规则 */}
+            {panel === 'edit' && (
+              <div className="mt-3 border-t border-line pt-3">
+                <div className="text-[11px] text-fg-dim mb-1">
+                  解析规则（JSON）。改完先点「测试」看抽出什么，确认了再保存 ——
+                  测试不会改动已入库的数据。
+                </div>
+                <textarea
+                  className="field w-full font-mono text-[11px]"
+                  rows={8}
+                  value={cfgText}
+                  onChange={(e) => setCfgText(e.target.value)}
+                />
+                <div className="flex gap-2 mt-2">
+                  <button className="btn text-xs" onClick={() => void testCfg(curSource.id, cfgText, false)}>
+                    测试
+                  </button>
+                  <button
+                    className="btn text-xs btn-primary"
+                    onClick={() => void testCfg(curSource.id, cfgText, true)}
+                  >
+                    保存并测试
+                  </button>
+                  <button className="btn text-xs btn-ghost" onClick={() => setPanel(null)}>
+                    收起
+                  </button>
+                </div>
+                {testOut && (
+                  <pre className="mt-2 text-[11px] whitespace-pre-wrap bg-bg-elev p-2 rounded border border-line">
+                    {testOut}
+                  </pre>
+                )}
+              </div>
+            )}
+
+            {/* 抓取日志 */}
+            {panel === 'runs' && (
+              <div className="mt-3 border-t border-line pt-3">
+                <div className="text-[11px] text-fg-dim mb-1">最近 15 次抓取</div>
+                {runs.length === 0 ? (
+                  <div className="text-[11px] text-fg-dim">还没有记录。</div>
+                ) : (
+                  <div className="space-y-1">
+                    {runs.map((r, i) => (
+                      <div key={i} className="text-[11px] text-fg-muted">
+                        <span className="font-mono">{r.started_at.slice(5, 19).replace('T', ' ')}</span>
+                        {' · '}
+                        {r.status}
+                        {' · HTTP '}
+                        {r.http_status ?? '-'}
+                        {' · 找到 '}
+                        {r.items_found} 新增 {r.items_new}
+                        {r.duration_ms != null && ` · ${r.duration_ms}ms`}
+                        {r.error_message && <span className="text-red-500"> · {r.error_message}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button className="btn text-xs btn-ghost mt-2" onClick={() => setPanel(null)}>
+                  收起
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ---------- 新增来源 ---------- */}
+        {panel === 'new' && (
+          <div className="rounded border border-line bg-panel p-3 mb-3">
+            <div className="text-[13px] font-medium mb-2">新增来源</div>
+            <div className="flex gap-2 mb-2">
+              <input
+                className="field flex-1"
+                placeholder="粘贴网址，比如 https://sspai.com/feed 或学院公告页"
+                value={newUrl}
+                onChange={(e) => setNewUrl(e.target.value)}
+              />
+              <button className="btn text-xs" onClick={() => void doDetect()}>
+                探测
+              </button>
+            </div>
+            {newName && (
+              <>
+                <div className="grid grid-cols-3 gap-2 mb-2">
+                  <input
+                    className="field"
+                    placeholder="名称"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                  />
+                  <input
+                    className="field"
+                    placeholder="间隔（分钟，最小 5）"
+                    value={newInterval}
+                    onChange={(e) => setNewInterval(e.target.value)}
+                  />
+                  <input
+                    className="field"
+                    placeholder="标签，逗号分隔"
+                    value={newTags}
+                    onChange={(e) => setNewTags(e.target.value)}
+                  />
+                </div>
+                {newCfg && (
+                  <>
+                    <div className="text-[11px] text-fg-dim mb-1">解析规则（自动生成，可以改）</div>
+                    <textarea
+                      className="field w-full font-mono text-[11px]"
+                      rows={6}
+                      value={newCfg}
+                      onChange={(e) => setNewCfg(e.target.value)}
+                    />
+                  </>
+                )}
+                {newPreview.length > 0 && (
+                  <div className="text-[11px] text-fg-dim mt-2">
+                    预览：
+                    {newPreview.slice(0, 3).map((p, i) => (
+                      <div key={i} className="truncate">· {p.title}</div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2 mt-2">
+                  <button className="btn text-xs btn-primary" onClick={() => void saveNew()}>
+                    保存并抓一次
+                  </button>
+                  <button className="btn text-xs btn-ghost" onClick={() => setPanel(null)}>
+                    取消
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ---------- OPML ---------- */}
+        {!curSource && (
+          <div className="flex gap-2 mb-3">
+            <button className="btn text-xs" onClick={() => void exportOpml()}>
+              导出 OPML
+            </button>
+            <button className="btn text-xs" onClick={() => setPanel(panel === 'opml' ? null : 'opml')}>
+              导入 OPML
+            </button>
+          </div>
+        )}
+        {panel === 'opml' && (
+          <div className="rounded border border-line bg-panel p-3 mb-3">
+            <div className="text-[11px] text-fg-dim mb-1">
+              把 OPML 内容粘贴进来（别的阅读器导出的文件可以用记事本打开后复制）。
+            </div>
+            <textarea
+              className="field w-full font-mono text-[11px]"
+              rows={6}
+              value={opmlText}
+              onChange={(e) => setOpmlText(e.target.value)}
+            />
+            <div className="flex gap-2 mt-2">
+              <button className="btn text-xs btn-primary" onClick={() => void importOpml()}>
+                导入
+              </button>
+              <button className="btn text-xs btn-ghost" onClick={() => setPanel(null)}>
+                取消
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ---------- 时间流 ---------- */}
         <div className="space-y-3">
           {items.map((it) => (
             <div key={it.id} className="border-b border-line pb-3">
@@ -358,10 +804,16 @@ export function AggregatorView() {
                 <div className="text-[12px] text-fg-muted mt-1 line-clamp-2">{it.summary}</div>
               )}
               <div className="flex gap-2 mt-1">
-                <button className="btn btn-ghost text-[11px]" onClick={() => void setState(it, { starred: !it.starred })}>
+                <button
+                  className="btn btn-ghost text-[11px]"
+                  onClick={() => void setState(it, { starred: !it.starred })}
+                >
                   {it.starred ? '★ 已收藏' : '☆ 收藏'}
                 </button>
-                <button className="btn btn-ghost text-[11px]" onClick={() => void setState(it, { read: !it.read_at })}>
+                <button
+                  className="btn btn-ghost text-[11px]"
+                  onClick={() => void setState(it, { read: !it.read_at })}
+                >
                   {it.read_at ? '标为未读' : '标为已读'}
                 </button>
               </div>
