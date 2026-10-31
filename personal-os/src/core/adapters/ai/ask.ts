@@ -16,13 +16,27 @@ import type { AIConfig } from './types';
  */
 
 export interface AskHit {
-  kind: 'item' | 'note' | 'attachment';
+  kind: 'item' | 'note' | 'attachment' | 'feed';
   id: string;
   title: string;
   typeLabel: string;
   when: string;
   snippet: string;
   score?: number;
+  /** 信息流条目才有：原文链接，界面点击时用系统浏览器打开 */
+  url?: string;
+}
+
+/** 问答要用到的信息流条目（最小字段，避免搜索层与聚合客户端互相依赖） */
+export interface FeedLike {
+  refId: string;
+  title: string;
+  summary: string;
+  content: string;
+  sourceName: string;
+  section: string;
+  url: string;
+  publishedAt: string | null;
 }
 
 export interface AskResult {
@@ -48,6 +62,12 @@ const PLAN_SYSTEM = `你是查询条件生成器。把用户的问题转成 JSON
 - tags: 标签名数组
 - priorityMin: 0~4
 - limit: 数字，默认 20
+- scope: 字符串，只能是 schedule / feed / all —— **必填**，决定查哪一类数据：
+  · 问的是"我自己的事"（作业、待办、班费、会议、截止、还有什么没做）→ schedule
+  · 问的是"外面有什么"（学校通知、新闻、某条公告、某某网站上说了什么）→ feed
+  · 两类都说得通，或明显是全局找东西 → all
+  判断依据：schedule 的条目有类型/状态/截止时间，feed 的条目是外部信息流（通知、新闻、文章），
+  没有"完成/未完成"这回事。**不要把"还有什么没做"判成 feed。**
 只输出 JSON，不要解释。`;
 
 const SUMMARY_SYSTEM = `你是个人助理。用户问了一个问题，下面是从他本地数据库里检索到的若干条记录。
@@ -55,8 +75,11 @@ const SUMMARY_SYSTEM = `你是个人助理。用户问了一个问题，下面�
 1. 只根据这些记录回答，不要编造。记录里没有就说"没找到"。
 2. 用简洁的中文回答，需要时在句末用 [1] [2] 标注依据的是第几条记录。
 3. 不要重复罗列记录内容，要给出结论。
-4. 如果问的是"还有什么没做"，按截止时间先后列出重点。
-5. 只输出 JSON，不要解释，格式样例：{"answer":"你的回答"}。
+4. 记录开头标了"来源=信息流"的是**外部信息流的文章/通知**（不是用户的待办），
+   回答时要说明它来自信息流，不要把它说成用户要做的事；
+   "来源=日程/附件"的才是用户自己的条目。
+5. 如果问的是"还有什么没做"，按截止时间先后列出重点（只看"来源=日程/附件"的）。
+6. 只输出 JSON，不要解释，格式样例：{"answer":"你的回答"}。
 
 （第 5 条不能省：接口开了 response_format=json_object，DeepSeek / OpenAI 都要求
 提示词里出现 json 字样，否则直接 400 —— 查询条件生成那步能过就是因为它的提示词里有"JSON"。）`;
@@ -150,6 +173,11 @@ async function planByModel(cfg: AIConfig, question: string, now: Date): Promise<
   }
   if (typeof raw.openOnly === 'boolean') q.openOnly = raw.openOnly;
   if (typeof raw.keyword === 'string' && raw.keyword.trim()) q.keyword = raw.keyword.trim();
+  // scope：模型说了算，但只认这三个值 —— 万一它自创一个（比如 "通知"），
+  // 下面会按"没给"处理，退回调用方的默认，总比查出一堆乱七八糟的强。
+  if (raw.scope === 'schedule' || raw.scope === 'feed' || raw.scope === 'all') {
+    q.scope = raw.scope;
+  }
   if (typeof raw.from === 'string' && raw.from) q.from = new Date(raw.from).toISOString();
   if (typeof raw.to === 'string' && raw.to) q.to = new Date(raw.to).toISOString();
   if (typeof raw.priorityMin === 'number') q.priorityMin = Math.max(0, Math.min(4, Math.round(raw.priorityMin))) as Priority;
@@ -159,10 +187,23 @@ async function planByModel(cfg: AIConfig, question: string, now: Date): Promise<
 }
 
 /** 执行查询并把结果压成"片段"，供总结与引用 */
-export async function collectHits(query: ItemQuery): Promise<AskHit[]> {
-  const [items, notes] = await Promise.all([listItems({ query }), listNotes()]);
+export async function collectHits(
+  query: ItemQuery,
+  opts?: { feed?: FeedLike[]; includeFeedContent?: boolean },
+): Promise<AskHit[]> {
+  const feed = opts?.feed ?? [];
+  const withContent = opts?.includeFeedContent ?? true;
 
-  const hits: AskHit[] = items.slice(0, query.limit ?? 20).map((i) => ({
+  // 只查信息流时不必去翻日程表 —— 反过来也一样，省时间也省得混进无关结果
+  const wantSchedule = !query.scope || query.scope !== 'feed';
+  const wantFeed = query.scope === 'feed' || query.scope === 'all';
+
+  const [items, notes] = wantSchedule
+    ? await Promise.all([listItems({ query }), listNotes()])
+    : [[], []];
+
+  const limit = query.limit ?? 20;
+  const hits: AskHit[] = items.slice(0, limit).map((i) => ({
     kind: 'item' as const,
     id: i.id,
     title: i.title,
@@ -176,7 +217,7 @@ export async function collectHits(query: ItemQuery): Promise<AskHit[]> {
   if (kw) {
     for (const n of notes) {
       if (!n.content.toLowerCase().includes(kw) && !n.title.toLowerCase().includes(kw)) continue;
-      if (hits.length >= (query.limit ?? 20)) break;
+      if (hits.length >= limit) break;
       const pos = n.content.toLowerCase().indexOf(kw);
       hits.push({
         kind: 'note',
@@ -185,6 +226,30 @@ export async function collectHits(query: ItemQuery): Promise<AskHit[]> {
         typeLabel: '笔记',
         when: n.updatedAt,
         snippet: pos >= 0 ? n.content.slice(Math.max(0, pos - 40), pos + 120) : n.content.slice(0, 120),
+      });
+    }
+  }
+
+  /* ---- 信息流：关键词命中的条目（可搜正文，开关在界面上）---- */
+  if (wantFeed && kw) {
+    for (const f of feed) {
+      if (hits.length >= limit) break;
+      const hayTitle = (f.title || '').toLowerCase();
+      const haySummary = (f.summary || '').toLowerCase();
+      const hayBody = withContent ? (f.content || '').toLowerCase() : '';
+      const posBody = hayBody ? hayBody.indexOf(kw) : -1;
+      if (!hayTitle.includes(kw) && !haySummary.includes(kw) && posBody < 0) continue;
+      const source = hayBody || haySummary;
+      const pos = haySummary.indexOf(kw) >= 0 ? haySummary.indexOf(kw) : posBody;
+      hits.push({
+        kind: 'feed',
+        id: f.refId,
+        title: f.title,
+        typeLabel: f.sourceName || f.section || '信息流',
+        when: f.publishedAt ?? '',
+        snippet:
+          pos >= 0 ? source.slice(Math.max(0, pos - 40), pos + 140) : source.slice(0, 140),
+        url: f.url,
       });
     }
   }
@@ -203,8 +268,12 @@ const TYPE_LABEL: Record<string, string> = {
   custom: '自定义',
 };
 
-function search(q: string, limit: number) {
-  return fullTextSearch(q, limit);
+function search(
+  q: string,
+  limit: number,
+  kinds?: ('item' | 'note' | 'attachment' | 'feed')[],
+) {
+  return fullTextSearch(q, limit, kinds);
 }
 
 function fmtWhen(iso: string): string {
@@ -214,9 +283,15 @@ function fmtWhen(iso: string): string {
 }
 
 /** 主入口：问一句，拿答案 + 引用 */
-export async function ask(question: string, now: Date = new Date()): Promise<AskResult> {
+export async function ask(
+  question: string,
+  now: Date = new Date(),
+  opts?: { feed?: FeedLike[]; includeFeedContent?: boolean },
+): Promise<AskResult> {
   const cfg = await loadConfig();
   const notes: string[] = [];
+  const feed = opts?.feed ?? [];
+  const withContent = opts?.includeFeedContent ?? true;
 
   // 1) 查询条件：优先模型，失败/关闭则规则兜底
   let query: ItemQuery;
@@ -236,8 +311,16 @@ export async function ask(question: string, now: Date = new Date()): Promise<Ask
     notes.push(`本地规则生成查询条件（${cloudBlockReason(cfg)}）`);
   }
 
+  // 1.5) 范围：信息流没被勾选（调用方没给 feed）就强制只查本地日程/笔记。
+  //      这样"还有什么没做"绝不会冒出一条校园新闻。
+  if (feed.length === 0 && query.scope !== 'schedule') {
+    query.scope = 'schedule';
+  } else if (!query.scope) {
+    query.scope = feed.length ? 'all' : 'schedule';
+  }
+
   // 2) 本地执行
-  const hits = await collectHits(query);
+  const hits = await collectHits(query, { feed, includeFeedContent: withContent });
 
   // 3) 总结：只在允许出网且有命中时做
   let answer = '';
@@ -245,8 +328,12 @@ export async function ask(question: string, now: Date = new Date()): Promise<Ask
   if (hits.length === 0) {
     answer = '本地库里没有符合条件的记录。';
   } else if (cloudOk) {
+    // 每条前面标上"这是哪一类"，否则模型会把一条校园通知当成用户的待办来答
     const numbered = hits
-      .map((h, i) => `[${i + 1}] ${h.typeLabel}｜${h.title}｜${fmtWhen(h.when)}｜${h.snippet}`)
+      .map((h, i) => {
+        const from = h.kind === 'feed' ? '信息流' : h.kind === 'note' ? '笔记' : '日程/附件';
+        return `[${i + 1}] 来源=${from}｜${h.typeLabel}｜${h.title}｜${fmtWhen(h.when)}｜${h.snippet}`;
+      })
       .join('\n');
     try {
       const raw = (await chatJSON(cfg, SUMMARY_SYSTEM, `问题：${question}\n\n记录：\n${numbered}`)) as {
@@ -276,8 +363,11 @@ const EXPAND_SYSTEM = `你是检索助手。用户给一句自然语言查询，
  */
 export async function expandAndSearch(
   question: string,
+  opts?: { kinds?: ('item' | 'note' | 'attachment' | 'feed')[]; limit?: number },
 ): Promise<{ keywords: string[]; hits: AskHit[]; reason?: string }> {
   const cfg = await loadConfig();
+  const kinds = opts?.kinds;
+  const limit = opts?.limit ?? 8;
   let keywords: string[] = [];
   let reason: string | undefined;
 
@@ -300,7 +390,7 @@ export async function expandAndSearch(
 
   const merged = new Map<string, AskHit>();
   for (const k of keywords) {
-    for (const h of search(k, 8)) {
+    for (const h of search(k, limit, kinds)) {
       const key = `${h.kind}:${h.refId}`;
       if (!merged.has(key)) {
         merged.set(key, {

@@ -261,6 +261,12 @@ export interface ItemQuery {
   priorityMin?: Priority;
   courseId?: ID;
   limit?: number;
+  /**
+   * 查哪一类数据：schedule=只查日程/笔记/附件，feed=只查信息流，all=都查。
+   * 由问答第一步的模型判断（见 ask.ts 的 PLAN_SYSTEM），
+   * 没给就由调用方按"信息流有没有被勾选"来定。
+   */
+  scope?: 'schedule' | 'feed' | 'all';
 }
 
 export type SortKey = 'dueAt' | 'startAt' | 'priority' | 'createdAt' | 'updatedAt';

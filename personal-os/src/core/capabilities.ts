@@ -15,11 +15,11 @@ import { checkModelDetailed, modelReady } from './adapters/embed';
 import { loadOcrConfig, ocrRoute } from './adapters/extract';
 import { langReady } from './adapters/ocr';
 import { loadSyncConfig, loadSyncSecret } from './adapters/sync';
-import { getMeta } from './repo/db';
+import { db, getMeta } from './repo/db';
 import { dataDir, isTauri, shellVersion } from './adapters/desktop';
 import { APP_VERSION, BUILD_ID } from './version';
 
-export type CapabilityId = 'ai' | 'semantic' | 'ask' | 'ocr' | 'sync' | 'backup';
+export type CapabilityId = 'ai' | 'semantic' | 'ask' | 'feed' | 'ocr' | 'sync' | 'backup';
 
 export interface CapState {
   id: CapabilityId;
@@ -40,6 +40,7 @@ export const CAP_LABELS: Record<CapabilityId, string> = {
   ai: 'AI 解析',
   semantic: '语义搜索',
   ask: '智能问答',
+  feed: '信息流搜索',
   ocr: '图片 OCR',
   sync: '多设备同步',
   backup: '数据备份',
@@ -151,6 +152,48 @@ export async function checkCapabilities(): Promise<CapState[]> {
         fixLabel: '去填 Key',
         optional: true,
       });
+    }
+  }
+
+  /* ---- 信息流搜索（数据来自本机的聚合服务，只有桌面版访问得到）---- */
+  {
+    if (!isTauri()) {
+      out.push({
+        id: 'feed',
+        label: CAP_LABELS.feed,
+        ok: false,
+        detail: '只有桌面版能访问本机的聚合服务（127.0.0.1），网页版/手机版用不了这一项。',
+        optional: true,
+      });
+    } else {
+      let n = 0;
+      let at = '';
+      try {
+        n = await db.feedItems.count();
+        at = await getMeta<string>('feed:cachedAt', '');
+      } catch {
+        n = 0;
+      }
+      if (n === 0) {
+        out.push({
+          id: 'feed',
+          label: CAP_LABELS.feed,
+          ok: false,
+          detail: '还没有信息流快照。打开「搜索」页会自动拉一次（需要聚合服务在跑）。',
+          fixTo: '#about',
+          fixLabel: '看怎么开服务',
+          optional: true,
+        });
+      } else {
+        const days = at ? Math.floor((Date.now() - new Date(at).getTime()) / 86400000) : -1;
+        out.push({
+          id: 'feed',
+          label: CAP_LABELS.feed,
+          ok: true,
+          detail: `已镜像 ${n} 条（${days < 0 ? '未知时间' : days === 0 ? '今天更新' : `${days} 天前更新`}）。搜索页勾选「信息流」即可参与检索。`,
+          optional: true,
+        });
+      }
     }
   }
 

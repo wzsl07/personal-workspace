@@ -4,12 +4,36 @@ import { fmtDateTime } from '../../core/domain/time';
 import { useUI } from '../../app/store';
 import { Empty } from '../../ui/primitives';
 import { Icon } from '../../ui/Icon';
+import type { FeedDoc } from '../../core/aggregator/client';
+import { openPath } from '../../core/adapters/desktop';
+import type { Scope } from './scope';
+
+const CONTENT_KEY = 'ask.feedContent';
+
+function loadContentFlag(): boolean {
+  try {
+    // 默认开：用户已接受"问答可带信息流正文出网"
+    return localStorage.getItem(CONTENT_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
 
 /**
  * 自然语言问答面板。
- * 回答里带 [1] [2] 引用编号，点引用跳到原条目 / 原笔记。
+ * 回答里带 [1] [2] 引用编号，点引用跳到原条目 / 原笔记 / 信息流原文。
+ *
+ * 范围默认不含信息流（要手动勾）：问"还有什么没做"时不该冒出校园新闻。
+ * 勾上信息流后，是否连正文一起搜由下面那个开关决定 —— 关掉就只搜标题和摘要。
  */
-export function AskPanel() {
+export function AskPanel({
+  scopes,
+  feed,
+}: {
+  scopes: Scope[];
+  feed: FeedDoc[];
+  onScopesChange?: (s: Scope[]) => void;
+}) {
   const openEdit = useUI((s) => s.openEdit);
   const openNote = useUI((s) => s.openNote);
   const setView = useUI((s) => s.setView);
@@ -17,13 +41,32 @@ export function AskPanel() {
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<AskResult | null>(null);
+  const [withContent, setWithContent] = useState<boolean>(() => loadContentFlag());
+
+  const feedOn = scopes.includes('feed');
+
+  function toggleContent() {
+    const v = !withContent;
+    setWithContent(v);
+    try {
+      localStorage.setItem(CONTENT_KEY, v ? '1' : '0');
+    } catch {
+      /* 忽略 */
+    }
+  }
 
   async function run() {
     const text = q.trim();
     if (!text) return;
     setBusy(true);
     try {
-      setResult(await ask(text));
+      setResult(
+        await ask(text, new Date(), {
+          // 没勾信息流就传空数组 —— ask() 里会据此把范围锁死在"日程/笔记"
+          feed: feedOn ? feed : [],
+          includeFeedContent: withContent,
+        }),
+      );
     } catch (e) {
       toast(`问答失败：${e instanceof Error ? e.message : e}`, 'err');
     } finally {
@@ -33,10 +76,10 @@ export function AskPanel() {
 
   return (
     <div>
-      <div className="flex gap-2 mb-3">
+      <div className="flex gap-2 mb-2">
         <input
           className="field flex-1"
-          placeholder="例如：我这周还有什么作业没交？上个月班级事务里关于班费的内容在哪？"
+          placeholder="例如：我这周还有什么作业没交？学校最近发了哪些关于选课的通知？"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
@@ -46,6 +89,21 @@ export function AskPanel() {
         <button className="btn btn-primary" onClick={() => void run()} disabled={busy || !q.trim()}>
           {busy ? '查询中…' : '提问'}
         </button>
+      </div>
+
+      <div className="mb-3 flex flex-wrap items-center gap-3 text-[11px] text-fg-dim">
+        <span>范围：{scopes.length ? scopes.join(' / ') : '（未选）'}</span>
+        {feedOn ? (
+          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+            <input type="checkbox" checked={withContent} onChange={toggleContent} />
+            信息流连正文一起搜
+          </label>
+        ) : (
+          <span>未勾选「信息流」——问答只查日程与笔记</span>
+        )}
+        {feedOn && withContent && (
+          <span className="text-[#f0a13c]">正文片段会发给模型总结（出网）</span>
+        )}
       </div>
 
       {!result ? (
@@ -81,12 +139,17 @@ export function AskPanel() {
                   onClick={() => {
                     if (h.kind === 'item') openEdit(h.id);
                     else if (h.kind === 'note') openNote(h.id);
-                    else setView('attachments');
+                    else if (h.kind === 'attachment') setView('attachments');
+                    else if (h.url) void openPath(h.url);
+                    else toast('这条没有链接', 'warn');
                   }}
                 >
                   <div className="flex items-center gap-1.5">
                     <span className="chip border-accent text-accent text-[10px]">[{i + 1}]</span>
                     <span className="chip border-line text-[10px]">{h.typeLabel}</span>
+                    {h.kind === 'feed' && (
+                      <span className="chip border-line text-[10px]">信息流</span>
+                    )}
                     <span className="text-sm truncate">{h.title}</span>
                   </div>
                   {h.snippet && (
@@ -104,7 +167,7 @@ export function AskPanel() {
 
           <div className="text-[11px] text-fg-dim flex items-center gap-1">
             <Icon name="Search" size={11} />
-            点任意一条引用即可跳到原始笔记或日程
+            点任意一条引用即可跳到原始笔记、日程，或打开信息流原文
           </div>
         </div>
       )}

@@ -21,6 +21,12 @@ class RawItem:
     author: str = ""
     published_at: str | None = None   # ISO 8601，统一带时区
     raw: str = field(default="", repr=False)   # 原始片段，调试用
+    # 正文（搜索用）。RSS/JSON 源常常在 feed 里就带着全文（content:encoded /
+    # content_html），此时**零额外请求**即可拿到，解析器直接填这里；
+    # HTML 列表页源则拿不到，留给后台的正文抓取器按 URL 补抓。
+    content: str = ""
+    # 正文状态：'' 还没试过 / ok 有正文 / fail 抓过但失败 / skip 该来源关了抓正文
+    content_state: str = ""
     # 所属栏目（按网页自身的分类来）。一个页面常常有好几个并列列表
     # （通知公告 / 新闻动态 / 学术活动…），界面上要能按它筛选，
     # 保留策略也要按各分支分别限条数，否则大列表会挤掉其它栏目的条目。
@@ -63,3 +69,5 @@ class Source:
     last_modified: str | None = None
     created_at: str | None = None
     updated_at: str | None = None
+    # 是否抓取详情页正文（搜索要用）。RSS 自带全文的源建议关掉，省一次请求。
+    fetch_content: bool = False

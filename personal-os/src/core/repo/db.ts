@@ -22,13 +22,31 @@ import type {
  */
 export interface VectorRow {
   id: string;
-  kind: 'item' | 'note' | 'attachment';
+  kind: 'item' | 'note' | 'attachment' | 'feed';
   refId: string;
   /** 内容哈希：内容没变就不重算向量 */
   hash: string;
   title: string;
   typeLabel: string;
   vec: Float32Array;
+}
+
+/** 信息流条目的本地镜像（聚合服务数据的快照，只用于搜索） */
+export interface FeedItemRow {
+  /** 统一用 `feed:<聚合服务里的条目 id>`，和搜索索引里的 id 对齐 */
+  id: string;
+  refId: string;
+  sourceId: number;
+  sourceName: string;
+  section: string;
+  title: string;
+  url: string;
+  summary: string;
+  /** 正文（可能为空：来源没抓到，或该条是 PDF） */
+  content: string;
+  publishedAt: string | null;
+  /** 快照写入时间 */
+  cachedAt: string;
 }
 
 export class PersonalDB extends Dexie {
@@ -49,6 +67,8 @@ export class PersonalDB extends Dexie {
   blobs!: Table<{ key: string; blob: Blob }, string>;
   /** 语义搜索向量：id = `${kind}:${refId}` */
   vectors!: Table<VectorRow, string>;
+  /** 信息流条目镜像：id = `feed:${refId}` */
+  feedItems!: Table<FeedItemRow, string>;
 
   constructor() {
     super('personal-os');
@@ -77,6 +97,13 @@ export class PersonalDB extends Dexie {
     // v3：语义搜索的向量（本地 embedding，可选功能）
     this.version(3).stores({
       vectors: 'id, refId, hash',
+    });
+
+    // v4：信息流条目的本地镜像（搜索要用）。
+    // 数据本体在聚合服务的 SQLite 里，这里只是给搜索用的快照 ——
+    // 服务没启动时，搜索仍能命中上一次的快照。
+    this.version(4).stores({
+      feedItems: 'id, sourceId, section, publishedAt',
     });
   }
 }

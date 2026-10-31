@@ -38,6 +38,9 @@ def save_new_items(
     now = datetime.now(LOCAL_TZ).isoformat()
     rows = []
     for it, uk, ch in new_items:
+        # 解析器已经给了正文（RSS/JSON 的全文字段）就直接存；
+        # 拿不到的（HTML 列表页）留空，交给后台的正文抓取器按 URL 补。
+        has_content = bool(it.content)
         rows.append(
             (
                 source_id,
@@ -52,13 +55,17 @@ def save_new_items(
                 ch,
                 it.raw,
                 it.section or "",
+                it.content or None,
+                now if has_content else None,
+                "ok" if has_content else (it.content_state or ""),
             )
         )
     conn.executemany(
         """INSERT OR IGNORE INTO items
            (source_id, guid, url, title, summary, author, published_at,
-            discovered_at, url_key, content_hash, raw, section)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            discovered_at, url_key, content_hash, raw, section,
+            content, content_at, content_state)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         rows,
     )
     conn.commit()

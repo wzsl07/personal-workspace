@@ -28,6 +28,9 @@ from parsers.base import register
 
 _TOKEN = re.compile(r"([A-Za-z0-9_\u4e00-\u9fff]+)|\[(\d+|\*)\]")
 
+# 正文上限，与 RSS 解析器保持一致
+MAX_CONTENT_CHARS = 20000
+
 
 def resolve_path(data, path: str):
     """按简化路径表达式取值。出错返回 None，不抛异常。"""
@@ -144,6 +147,14 @@ def parse_json_feed(body: bytes, base_url: str, config: dict) -> ParsedFeed:
                 ("summary", "content_text", "content", "description", "desc"))))
             guid = str(_pick(raw, fields, "guid", ("id", "guid", "url", "link")) or url or title)
 
+            # 正文：JSON Feed 规范里 content_html / content_text 就是全文，
+            # 同样不需要再发请求。取不到就退回 summary 的原文。
+            content = strip_html(_pick(
+                raw, fields, "content",
+                ("content_html", "content_text", "content", "text", "description", "desc")))
+            if len(content) > MAX_CONTENT_CHARS:
+                content = content[:MAX_CONTENT_CHARS]
+
             result.items.append(
                 RawItem(
                     guid=guid, url=url, title=title, summary=summary,
@@ -151,6 +162,8 @@ def parse_json_feed(body: bytes, base_url: str, config: dict) -> ParsedFeed:
                     published_at=parse_any(date_raw),
                     raw=json.dumps(raw, ensure_ascii=False)[:300],
                     section=section_name,
+                    content=content,
+                    content_state="ok" if content else "",
                 )
             )
 

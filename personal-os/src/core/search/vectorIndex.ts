@@ -16,19 +16,41 @@ function hashOf(s: string): string {
   return `${h}`;
 }
 
+export type VectorKind = 'item' | 'note' | 'attachment' | 'feed';
+
+/**
+ * 信息流参与向量索引的条数上限。
+ *
+ * 每条约 30–60ms 算一次向量、占 2KB 存储。几百条无所谓，
+ * 上千条首次建索引就要好几分钟，所以设个上限，只索引**最新的**那些。
+ */
+export const FEED_VECTOR_MAX = 2000;
+
 export interface Doc {
   id: string;
-  kind: 'item' | 'note' | 'attachment';
+  kind: VectorKind;
   refId: string;
   title: string;
   typeLabel: string;
   text: string;
 }
 
+/** 喂给向量索引的信息流条目（最小字段） */
+export interface FeedVectorInput {
+  id: string;
+  refId: string;
+  title: string;
+  summary: string;
+  content: string;
+  sourceName: string;
+  section: string;
+}
+
 export function collectDocs(
   items: ScheduleItem[],
   notes: Note[],
   attachments: Attachment[] = [],
+  feed: FeedVectorInput[] = [],
 ): Doc[] {
   const docs: Doc[] = [];
   for (const i of items) {
@@ -63,6 +85,17 @@ export function collectDocs(
       title: a.name,
       typeLabel: '附件',
       text: a.extractedText.slice(0, 800),
+    });
+  }
+  // 信息流：只取最新的 FEED_VECTOR_MAX 条，避免首次建索引跑太久
+  for (const f of feed.slice(0, FEED_VECTOR_MAX)) {
+    docs.push({
+      id: f.id,
+      kind: 'feed',
+      refId: f.refId,
+      title: f.title,
+      typeLabel: f.sourceName || f.section || '信息流',
+      text: [f.title, f.summary ?? '', f.content ?? ''].filter(Boolean).join('\n').slice(0, 800),
     });
   }
   return docs;
@@ -122,7 +155,7 @@ export async function buildVectorIndex(
 
 export interface VectorHit {
   id: string;
-  kind: 'item' | 'note' | 'attachment';
+  kind: VectorKind;
   refId: string;
   title: string;
   typeLabel: string;
@@ -130,11 +163,16 @@ export interface VectorHit {
 }
 
 /** 语义检索：query 向量与全库向量比余弦相似度 */
-export async function vectorSearch(q: string, limit = 20): Promise<VectorHit[]> {
+export async function vectorSearch(
+  q: string,
+  limit = 20,
+  kinds?: VectorKind[],
+): Promise<VectorHit[]> {
   if (!modelReady()) await loadModel();
   const qv = await embed(q);
   const rows = await db.vectors.toArray();
-  const scored = rows
+  const pool = kinds && kinds.length ? rows.filter((r) => kinds.includes(r.kind as VectorKind)) : rows;
+  const scored = pool
     .map((r) => ({ r, s: cosine(qv, r.vec) }))
     .sort((a, b) => b.s - a.s)
     .slice(0, limit);

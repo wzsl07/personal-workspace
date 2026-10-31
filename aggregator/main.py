@@ -16,6 +16,7 @@ import re
 import os
 import sys
 import threading
+import time
 import webbrowser
 from datetime import datetime, timedelta, timezone
 
@@ -34,6 +35,7 @@ from fastapi.middleware.cors import CORSMiddleware    # noqa: E402
 from pydantic import BaseModel, Field              # noqa: E402
 
 from adapters.http_fetch import DEFAULT_UA, fetch  # noqa: E402
+from core import content as content_mod            # noqa: E402
 from core import detect as detect_mod              # noqa: E402
 from core import health                            # noqa: E402
 from core import security                          # noqa: E402
@@ -102,6 +104,11 @@ def source_payload(conn, s) -> dict:
         "last_error": s.last_error,
         "next_due_at": s.next_due_at,
         "item_count": items_store.count_items(conn, s.id),
+        "fetch_content": bool(getattr(s, "fetch_content", False)),
+        # 有多少条已经有正文了（界面上给个进度感，也方便判断要不要补抓）
+        "content_count": conn.execute(
+            "SELECT COUNT(*) c FROM items WHERE source_id=? AND content_state='ok'", (s.id,)
+        ).fetchone()["c"],
         "sections": [{"name": n, "count": c} for n, c in secs],
         "parser_config": s.parser_config,
         "last_run": (
@@ -151,6 +158,7 @@ class SourceIn(BaseModel):
     parser_config: dict | None = None
     interval_sec: int = 900
     tags: str = ""
+    fetch_content: bool = False
 
 
 @app.post("/api/sources")
@@ -177,6 +185,7 @@ def create_source(body: SourceIn):
             sid = sources_store.add_source(
                 conn, name=name or body.url, type=rtype, url=body.url,
                 interval_sec=body.interval_sec, parser_config=cfg, tags=body.tags,
+                fetch_content=body.fetch_content,
             )
         except ValueError as e:
             raise HTTPException(400, str(e)) from e
@@ -204,6 +213,7 @@ class SourcePatch(BaseModel):
     parser_config: dict | None = None
     tags: str | None = None
     enabled: bool | None = None
+    fetch_content: bool | None = None
 
 
 @app.patch("/api/sources/{sid}")
@@ -394,6 +404,8 @@ def list_items(
     only_unread: bool = False,
     only_starred: bool = False,
     limit: int = 60,
+    with_content: bool = False,
+    content_limit: int = 2000,
 ):
     conn = db_store.connect()
     try:
@@ -418,9 +430,105 @@ def list_items(
                 "discovered_at": r["discovered_at"],
                 "read_at": r["read_at"],
                 "starred": bool(r["starred"]),
+                # 正文默认不返回（几十条就是几百 KB，界面列表用不上）；
+                # 搜索建索引时才带 with_content=1，并按 content_limit 截断。
+                **(
+                    {
+                        "content": (r["content"] or "")[:content_limit],
+                        "has_content": bool(r["content"]),
+                    }
+                    if with_content
+                    else {}
+                ),
             }
             for r in rows
         ]
+    finally:
+        conn.close()
+
+
+class BackfillIn(BaseModel):
+    source_id: int | None = None
+    limit: int | None = None
+    delay: float = 1.5
+    retry_failed: bool = False
+
+
+_backfill_state = {"running": False, "last": None}
+
+# 自动补正文的节奏：首次 30 秒后跑一批，之后每 10 分钟一批，每批最多 20 条
+CONTENT_FIRST_DELAY = 30
+CONTENT_TICK = 600
+CONTENT_BATCH = 20
+CONTENT_DELAY = 1.5
+
+
+@app.post("/api/content/backfill")
+def content_backfill(body: BackfillIn):
+    """补抓正文（后台跑，接口立刻返回）。
+
+    为什么放后台：62 条 × 每域名 1.5s 限速要跑一分多钟，
+    同步等会把界面（和调用方的超时）卡死。
+    """
+    if _backfill_state["running"]:
+        return {"ok": False, "error": "上一轮补抓还在跑"}
+
+    def _job():
+        conn = db_store.connect()
+        try:
+            db_store.init_db(conn)
+            _backfill_state["running"] = True
+            stats = content_mod.backfill(
+                conn,
+                source_id=body.source_id,
+                limit=body.limit,
+                delay=body.delay,
+                retry_failed=body.retry_failed,
+                log=lambda m: print(f"[补正文] {m}", flush=True),
+            )
+            _backfill_state["last"] = {
+                **stats,
+                "finished_at": datetime.now(timezone(timedelta(hours=8))).isoformat(),
+            }
+        except Exception as e:  # 后台线程里的异常没人接，必须自己兜住
+            _backfill_state["last"] = {"error": str(e)}
+        finally:
+            _backfill_state["running"] = False
+            conn.close()
+
+    threading.Thread(target=_job, daemon=True).start()
+    return {"ok": True, "note": "已在后台开始补抓，用 /api/content/status 看进度"}
+
+
+@app.get("/api/content/status")
+def content_status():
+    """正文覆盖情况 + 上一轮补抓结果（界面与前端搜索都用它判断数据齐不齐）。"""
+    conn = db_store.connect()
+    try:
+        db_store.init_db(conn)
+        total = conn.execute("SELECT COUNT(*) c FROM items").fetchone()["c"]
+        ok = conn.execute(
+            "SELECT COUNT(*) c FROM items WHERE content_state='ok'"
+        ).fetchone()["c"]
+        fail = conn.execute(
+            "SELECT COUNT(*) c FROM items WHERE content_state='fail'"
+        ).fetchone()["c"]
+        skip = conn.execute(
+            "SELECT COUNT(*) c FROM items WHERE content_state='skip'"
+        ).fetchone()["c"]
+        chars = conn.execute(
+            "SELECT COALESCE(SUM(LENGTH(content)),0) c FROM items WHERE content_state='ok'"
+        ).fetchone()["c"]
+        return {
+            "items": total,
+            "with_content": ok,
+            "failed": fail,
+            "skipped": skip,
+            "pending": total - ok - fail - skip,
+            "content_chars": chars,
+            "running": _backfill_state["running"],
+            "last": _backfill_state["last"],
+        }
     finally:
         conn.close()
 
@@ -455,8 +563,8 @@ def item_article(item_id: int):
         if not resp.ok:
             return {"ok": False, "error": resp.error_message or f"HTTP {resp.status}"}
 
-        text = _extract_main_text(resp.text)
-        html = _extract_main_html(resp.text, resp.final_url or url)
+        text = content_mod.extract_main_text(resp.text)
+        html = content_mod.extract_main_html(resp.text, resp.final_url or url)
         return {
             "ok": True,
             "url": resp.final_url or url,
@@ -469,166 +577,6 @@ def item_article(item_id: int):
         }
     finally:
         conn.close()
-
-
-def _extract_main_text(html_doc: str) -> str:
-    """从网页里取出正文。
-
-    不做复杂的正文识别算法 —— 目标只是"够 AI 读懂讲了什么"，
-    去掉导航/页脚/脚本后取最长的一段文字通常就够了。
-    """
-    try:
-        node = _best_content_node(html_doc)
-        if node is not None:
-            return _node_text(node)
-        from parsel import Selector
-
-        sel = Selector(html_doc)
-        if sel.css("body"):
-            return _node_text(sel.css("body")[0])
-        return ""
-    except Exception:
-        return strip_html_regex(html_doc)
-
-
-def _node_text(node) -> str:
-    import re as _re
-
-    try:
-        txt = node.root.text_content()
-    except Exception:
-        txt = ""
-    return _re.sub(r"\s+", " ", txt or "").strip()
-
-
-def _best_content_node(html_doc: str):
-    """挑出最像正文的那个节点（与 _extract_main_text 用的是同一套评分）。"""
-    from parsel import Selector
-
-    sel = Selector(html_doc)
-    for bad in ("script", "style", "noscript"):
-        for el in sel.css(bad):
-            try:
-                el.root.getparent().remove(el.root)
-            except Exception:
-                pass
-
-    candidates = (
-        "article",
-        "main",
-        "[class*=content]",
-        "[class*=article]",
-        "[class*=detail]",
-        "[id*=content]",
-        "[id*=article]",
-        "td",
-    )
-    best, best_score = None, 0.0
-    for sel_name in candidates:
-        for node in sel.css(sel_name)[:8]:
-            t = _node_text(node)
-            if len(t) < 80:
-                continue
-            links = node.css("a")
-            link_chars = sum(len(_node_text(a)) for a in links)
-            score = len(t) - link_chars * 1.6 - len(links) * 15
-            if score > best_score:
-                best, best_score = node, score
-    return best
-
-
-#: 正文里不该出现的"站内导航"。高校站几乎都在正文末尾放
-#: 「上一条：… 下一条：…」，抓正文时会跟着进来，看起来像正文的一部分。
-_NAV_TEXT_RE = re.compile(
-    r"^\s*(上一条|下一条|上一篇|下一篇|上一条:|下一条:|上一条：|下一条：|"
-    r"返回列表|返回上级|打印本页|打印此页|关闭窗口|返回顶部|【打印】)",
-)
-
-#: class / id 里带这些词的容器基本都是翻页或工具条
-_NAV_CLASS_RE = re.compile(r"(prev|next|pager|paging|pagination|share|bdshare|print)", re.I)
-
-
-def _strip_article_nav(node) -> None:
-    """把正文节点里的翻页导航、打印/关闭之类的小工具条去掉。"""
-    doomed = []
-    for el in node.root.iter():
-        if not isinstance(el.tag, str):
-            doomed.append(el)
-            continue
-        # 容器级判断：class/id 像翻页就直接整块丢
-        marks = " ".join(
-            filter(None, [el.get("class") or "", el.get("id") or ""])
-        )
-        if marks and _NAV_CLASS_RE.search(marks):
-            doomed.append(el)
-            continue
-        # 文字级判断：整块文字以"上一条/下一条…"开头的，连同链接一起丢
-        txt = _re_ws.sub(" ", (el.text_content() or "")).strip()
-        if txt and _NAV_TEXT_RE.match(txt):
-            doomed.append(el)
-
-    for el in doomed:
-        parent = el.getparent()
-        if parent is not None:
-            parent.remove(el)
-
-
-_re_ws = re.compile(r"\s+")
-
-
-def _extract_main_html(html_doc: str, base_url: str) -> str:
-    """取出正文的 HTML，清洗成可以安全渲染的样子。
-
-    两步都不能省：
-    1. 白名单清洗 —— 抓来的是别人的网页，等同于用户输入，必须过滤；
-    2. 相对地址补全 —— 图片/链接在原站是相对路径，搬到这里就全失效了。
-    """
-    from urllib.parse import urljoin
-
-    from normalizers.sanitize import sanitize_html
-
-    node = _best_content_node(html_doc)
-    if node is None:
-        return ""
-
-    _strip_article_nav(node)
-
-    try:
-        from lxml import html as lxml_html
-
-        inner = (node.root.text or "") + "".join(
-            lxml_html.tostring(c, encoding="unicode") for c in node.root.iterchildren()
-        )
-    except Exception:
-        return ""
-
-    cleaned = sanitize_html(inner)
-    return _absolutize(cleaned, base_url)
-
-
-def _absolutize(fragment: str, base_url: str) -> str:
-    """把清洗后的 HTML 里相对的图片/链接地址补成绝对地址。"""
-    from urllib.parse import urljoin
-
-    import re as _re
-
-    def _fix_src(m: "_re.Match[str]") -> str:
-        return f'src="{urljoin(base_url, m.group(1))}"'
-
-    def _fix_href(m: "_re.Match[str]") -> str:
-        return f'href="{urljoin(base_url, m.group(1))}"'
-
-    out = _re.sub(r'src="([^"]+)"', _fix_src, fragment)
-    out = _re.sub(r'href="([^"]+)"', _fix_href, out)
-    return out
-
-
-def strip_html_regex(s: str) -> str:
-    import re as _re
-
-    s = _re.sub(r"<(script|style)[^>]*>.*?</\1>", "", s, flags=_re.I | _re.S)
-    s = _re.sub(r"<[^>]+>", " ", s)
-    return _re.sub(r"\s+", " ", s).strip()
 
 
 class StateIn(BaseModel):
@@ -705,6 +653,54 @@ def start_scheduler() -> None:
     t.start()
 
 
+def _content_worker() -> None:
+    """正文补抓的常驻小工。
+
+    为什么单独一个循环而不是塞进抓取流程：
+    补正文是要打开详情页的，每个域名要限速，比抓列表页慢一个数量级。
+    跟主抓取绑在一起会把"抓一次"从 2 秒拖到 1 分钟，界面上的按钮就像卡死了。
+
+    每 CONTENT_TICK 秒看一眼有没有"还缺正文"的条目，有就抓一批（限量），
+    没有就继续睡。失败的会记成 fail，不会反复折磨源站。
+    """
+    first = True
+    while True:
+        time.sleep(CONTENT_FIRST_DELAY if first else CONTENT_TICK)
+        first = False
+        if _backfill_state["running"]:
+            continue
+        conn = db_store.connect()
+        try:
+            db_store.init_db(conn)
+            rows = content_mod.pending_items(conn, limit=CONTENT_BATCH)
+            todo = [r for r in rows if r["fetch_content"]]
+            if not todo:
+                continue
+            _backfill_state["running"] = True
+            try:
+                stats = content_mod.backfill(
+                    conn, limit=CONTENT_BATCH, delay=CONTENT_DELAY,
+                    log=lambda m: print(f"[补正文] {m}", flush=True),
+                )
+                _backfill_state["last"] = {
+                    **stats,
+                    "finished_at": datetime.now(timezone(timedelta(hours=8))).isoformat(),
+                    "auto": True,
+                }
+                print(f"[补正文] 自动补完一批：{stats}", flush=True)
+            finally:
+                _backfill_state["running"] = False
+        except Exception as e:
+            print(f"[补正文] 自动补抓出错：{e}", flush=True)
+        finally:
+            conn.close()
+
+
+def start_content_worker() -> None:
+    t = threading.Thread(target=_content_worker, name="content-worker", daemon=True)
+    t.start()
+
+
 def main() -> None:
     url = f"http://{HOST}:{PORT}/"
 
@@ -721,6 +717,7 @@ def main() -> None:
 
     db_store.init_db(db_store.connect())
     start_scheduler()
+    start_content_worker()
     print(f"服务已启动：{url}（只监听本机）")
     print("按 Ctrl+C 停止")
     # 用 AGG_NO_BROWSER=1 可以只起服务不弹浏览器（自动化测试用）

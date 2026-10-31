@@ -244,6 +244,53 @@ def cmd_preview(a) -> int:
     return 0
 
 
+def cmd_content(a) -> int:
+    """补抓正文。默认两步都做：先从 feed 自带全文字段补（零额外请求），
+    再对仍然缺正文且来源开了 fetch_content 的条目抓详情页。"""
+    from core import content as content_mod
+
+    conn = db_store.connect()
+    db_store.init_db(conn)
+    try:
+        if a.status:
+            total = conn.execute("SELECT COUNT(*) c FROM items").fetchone()["c"]
+            ok = conn.execute(
+                "SELECT COUNT(*) c FROM items WHERE content_state='ok'").fetchone()["c"]
+            fail = conn.execute(
+                "SELECT COUNT(*) c FROM items WHERE content_state='fail'").fetchone()["c"]
+            skip = conn.execute(
+                "SELECT COUNT(*) c FROM items WHERE content_state='skip'").fetchone()["c"]
+            print(f"条目 {total}　有正文 {ok}　失败 {fail}　跳过 {skip}　待处理 {total-ok-fail-skip}")
+            for r in conn.execute(
+                """SELECT s.id, s.name, s.type, s.fetch_content,
+                          SUM(CASE WHEN i.content_state='ok' THEN 1 ELSE 0 END) ok,
+                          COUNT(*) c
+                   FROM sources s LEFT JOIN items i ON i.source_id=s.id
+                   GROUP BY s.id ORDER BY s.id"""
+            ).fetchall():
+                print(f"  [{r['id']}] {r['name']:<16} {r['type']:<5} 抓正文={'开' if r['fetch_content'] else '关'}"
+                      f"　{r['ok'] or 0}/{r['c']} 有正文")
+            return 0
+
+        if a.enable_html:
+            cur = conn.execute("UPDATE sources SET fetch_content=1 WHERE type='html'")
+            conn.commit()
+            print(f"已为 {cur.rowcount} 个网页源打开「抓正文」")
+
+        if not a.web_only:
+            print("① 从 feed 自带全文字段补（每个源 1 个请求）：")
+            print("  ", content_mod.backfill_from_feed(conn, source_id=a.id))
+        if not a.feed_only:
+            print(f"② 抓详情页（每域名限速 {a.delay}s）：")
+            print("  ", content_mod.backfill(
+                conn, source_id=a.id, limit=a.limit, delay=a.delay,
+                retry_failed=a.retry,
+            ))
+        return 0
+    finally:
+        conn.close()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="信息聚合 · 命令行（Step 1）")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -305,6 +352,17 @@ def main() -> int:
     p.add_argument("--config", default="{}", help='JSON 规则，如 \'{"list":{"item":"ul li"}}\'')
     p.add_argument("--n", type=int, default=5)
     p.set_defaults(func=cmd_preview)
+
+    p = sub.add_parser("content", help="正文：查看覆盖情况 / 补抓")
+    p.add_argument("--status", action="store_true", help="只看统计，不抓")
+    p.add_argument("--feed-only", action="store_true", help="只用 feed 自带全文补，不抓详情页")
+    p.add_argument("--web-only", action="store_true", help="只抓详情页，不重拉 feed")
+    p.add_argument("--enable-html", action="store_true", help="给所有网页源打开「抓正文」开关")
+    p.add_argument("--id", type=int, default=None, help="只处理某个来源")
+    p.add_argument("--limit", type=int, default=None, help="最多处理多少条")
+    p.add_argument("--delay", type=float, default=1.5, help="同域名两次请求的间隔秒数")
+    p.add_argument("--retry", action="store_true", help="连之前失败的也重试")
+    p.set_defaults(func=cmd_content)
 
     args = ap.parse_args()
     return args.func(args)

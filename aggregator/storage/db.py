@@ -42,7 +42,10 @@ CREATE TABLE IF NOT EXISTS items (
   url_key TEXT NOT NULL,        -- 归一化 URL（去 utm_*、去 #、host 小写）
   content_hash TEXT NOT NULL,   -- 标题+摘要指纹，兜底去重
   raw TEXT,
-  section TEXT NOT NULL DEFAULT ''   -- 网页自身的栏目分类（通知公告 / 新闻动态 …）
+  section TEXT NOT NULL DEFAULT '',   -- 网页自身的栏目分类（通知公告 / 新闻动态 …）
+  content TEXT,                 -- 正文（抓取/解析得到，可能为空）
+  content_at TEXT,              -- 正文入库时间
+  content_state TEXT NOT NULL DEFAULT ''   -- '' 未尝试 / ok / fail / skip
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_items_guid ON items(source_id, guid);
 CREATE INDEX IF NOT EXISTS idx_items_time ON items(published_at DESC);
@@ -101,3 +104,18 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if cols:
         # 索引必须等列真的存在之后才能建 —— 放在 SCHEMA 里会在老库上直接报错
         conn.execute("CREATE INDEX IF NOT EXISTS idx_items_section ON items(source_id, section)")
+
+    # 正文（content）三件套：给搜索用。老库没有这些列，逐个补。
+    # content_state 用 '' 表示"还没试过"，这样补抓脚本能区分"没抓"和"抓过但失败"。
+    if cols:
+        if "content" not in cols:
+            conn.execute("ALTER TABLE items ADD COLUMN content TEXT")
+        if "content_at" not in cols:
+            conn.execute("ALTER TABLE items ADD COLUMN content_at TEXT")
+        if "content_state" not in cols:
+            conn.execute("ALTER TABLE items ADD COLUMN content_state TEXT NOT NULL DEFAULT ''")
+
+    # 来源上的「抓正文」开关（fetch_content）。0/1，NULL 当 0。
+    scols = {r["name"] for r in conn.execute("PRAGMA table_info(sources)")}
+    if scols and "fetch_content" not in scols:
+        conn.execute("ALTER TABLE sources ADD COLUMN fetch_content INTEGER NOT NULL DEFAULT 0")

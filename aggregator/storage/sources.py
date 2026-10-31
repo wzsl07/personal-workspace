@@ -56,6 +56,7 @@ def _row_to_source(r: sqlite3.Row) -> Source:
         last_modified=r["last_modified"],
         created_at=r["created_at"],
         updated_at=r["updated_at"],
+        fetch_content=bool(r["fetch_content"]) if "fetch_content" in r.keys() else False,
     )
 
 
@@ -69,6 +70,7 @@ def add_source(
     parser_config: dict | None = None,
     fetch_policy: dict | None = None,
     tags: str = "",
+    fetch_content: bool = False,
 ) -> int:
     """新增来源。最低间隔 300 秒（5 分钟）是硬限制，防止把别人站点抓崩。"""
     if interval_sec < 300:
@@ -80,8 +82,8 @@ def add_source(
     cur = conn.execute(
         """INSERT INTO sources
            (name, type, url, enabled, interval_sec, parser_config, fetch_policy,
-            tags, health_status, created_at, updated_at, next_due_at)
-           VALUES (?,?,?,1,?,?,?,?, 'unknown', ?,?,?)""",
+            tags, health_status, created_at, updated_at, next_due_at, fetch_content)
+           VALUES (?,?,?,1,?,?,?,?, 'unknown', ?,?,?,?)""",
         (
             name,
             type,
@@ -93,6 +95,7 @@ def add_source(
             now,
             now,
             now,   # 新增后立刻到期，第一次抓取马上执行
+            1 if fetch_content else 0,
         ),
     )
     conn.commit()
@@ -113,7 +116,7 @@ def update_source(conn: sqlite3.Connection, source_id: int, **fields) -> None:
     """改任意字段。parser_config / fetch_policy 传 dict，这里负责 JSON 化。"""
     allowed = {
         "name", "url", "interval_sec", "parser_config", "fetch_policy",
-        "tags", "enabled", "type",
+        "tags", "enabled", "type", "fetch_content",
     }
     bad = set(fields) - allowed
     if bad:
@@ -126,7 +129,7 @@ def update_source(conn: sqlite3.Connection, source_id: int, **fields) -> None:
     for k, v in fields.items():
         if k in ("parser_config", "fetch_policy") and isinstance(v, dict):
             v = json.dumps(v, ensure_ascii=False)
-        if k == "enabled":
+        if k in ("enabled", "fetch_content"):
             v = 1 if v else 0
         sets.append(f"{k}=?")
         values.append(v)
