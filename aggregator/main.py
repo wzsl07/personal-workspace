@@ -28,6 +28,7 @@ for _s in (sys.stdout, sys.stderr):
 import uvicorn                                    # noqa: E402
 from fastapi import FastAPI, HTTPException         # noqa: E402
 from fastapi.responses import HTMLResponse, Response  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware    # noqa: E402
 from pydantic import BaseModel, Field              # noqa: E402
 
 from adapters.http_fetch import fetch              # noqa: E402
@@ -51,6 +52,23 @@ PORT = int(os.environ.get("AGG_PORT") or 8787)
 WEB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web", "index.html")
 
 app = FastAPI(title="个人工作台 · 信息聚合", docs_url=None, redoc_url=None)
+
+# ---------------------------------------------------------------- CORS
+# 桌面版 personal-os 里的「信息流」页，页面本身来自 tauri://localhost，
+# 来请求 http://127.0.0.1:8787 属于**跨源**。没有 CORS 头的话浏览器会直接拦掉，
+# 界面上就只剩一句"信息聚合服务没启动"—— 而服务明明是开着的，非常误导。
+#
+# 之前只用了 curl 验证接口，curl 不做跨域检查，所以这个坑一直没暴露。
+#
+# 放行所有来源是安全的：本服务只监听 127.0.0.1，外网访问不到，
+# 能来请求的只有你本机上的浏览器页面。
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 _scheduler: Scheduler | None = None
 
