@@ -1,0 +1,69 @@
+<Slide style={{ background: '#0B1020', padding: 60 }}>
+    <Box style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF' }}>成本、性能与取舍</Text>
+        <Text style={{ fontSize: 14, color: '#64748B' }}>15 / 取舍</Text>
+    </Box>
+    <Box style={{ width: '100%', height: 1, background: 'rgba(34,211,238,0.4)', marginTop: 14 }} />
+
+    <Box style={{ flexDirection: 'row', gap: 20, marginTop: 22 }}>
+        <Box style={{ width: 560 }}>
+            <Text style={{ fontSize: 19, fontWeight: 'bold', color: '#22D3EE' }}>要花多少钱</Text>
+            <Box style={{ marginTop: 12, gap: 8 }}>
+                <Box style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 12, background: '#151B33', borderRadius: 6 }}>
+                    <Text style={{ fontSize: 15, color: '#E2E8F0' }}>解析一次（一条通知 → 多条）</Text>
+                    <Text style={{ fontSize: 15, color: '#22D3EE', fontWeight: 'bold' }}>¥0.0026</Text>
+                </Box>
+                <Box style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 12, background: '#151B33', borderRadius: 6 }}>
+                    <Text style={{ fontSize: 15, color: '#E2E8F0' }}>问答一次（两次模型调用）</Text>
+                    <Text style={{ fontSize: 15, color: '#22D3EE', fontWeight: 'bold' }}>¥0.0045</Text>
+                </Box>
+                <Box style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 12, background: '#151B33', borderRadius: 6 }}>
+                    <Text style={{ fontSize: 15, color: '#E2E8F0' }}>每天 20 次解析 + 10 次问答</Text>
+                    <Text style={{ fontSize: 15, color: '#22D3EE', fontWeight: 'bold' }}>≈ ¥3 / 月</Text>
+                </Box>
+                <Box style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 12, background: '#151B33', borderRadius: 6 }}>
+                    <Text style={{ fontSize: 15, color: '#E2E8F0' }}>关掉云端（本地规则 + 本地向量）</Text>
+                    <Text style={{ fontSize: 15, color: '#22D3EE', fontWeight: 'bold' }}>¥0</Text>
+                </Box>
+            </Box>
+            <Text style={{ fontSize: 14, color: '#64748B', marginTop: 12, lineHeight: 1.6 }}>
+                按 DeepSeek 峰谷价的空闲时段估算。只有"命中的那几段"会发给模型，从不上传全库；关掉 Key 之后应用照常可用。
+            </Text>
+        </Box>
+
+        <Box style={{ width: 580 }}>
+            <Text style={{ fontSize: 19, fontWeight: 'bold', color: '#22D3EE' }}>当前瓶颈 → 怎么优化</Text>
+            <Box style={{ marginTop: 12, gap: 8 }}>
+                <Box style={{ padding: 10, background: '#151B33', borderRadius: 6, borderLeft: '3px solid #F0ABFC' }}>
+                    <Text style={{ fontSize: 14, color: '#FFFFFF' }}>索引逐条构建（30–60 ms/条）</Text>
+                    <Text style={{ fontSize: 13, color: '#94A3B8', marginTop: 3 }}>→ 改批量推理，提速 3–5 倍；同时已用"可选 + 条数上限"缓解</Text>
+                </Box>
+                <Box style={{ padding: 10, background: '#151B33', borderRadius: 6, borderLeft: '3px solid #F0ABFC' }}>
+                    <Text style={{ fontSize: 14, color: '#FFFFFF' }}>向量检索是线性扫描</Text>
+                    <Text style={{ fontSize: 13, color: '#94A3B8', marginTop: 3 }}>→ 当前量级（几百条）无感；上万条后引入 HNSW</Text>
+                </Box>
+                <Box style={{ padding: 10, background: '#151B33', borderRadius: 6, borderLeft: '3px solid #F0ABFC' }}>
+                    <Text style={{ fontSize: 14, color: '#FFFFFF' }}>问答两次调用串行（2–5 秒）</Text>
+                    <Text style={{ fontSize: 13, color: '#94A3B8', marginTop: 3 }}>→ 改流式输出，首字延迟压到 1 秒内</Text>
+                </Box>
+                <Box style={{ padding: 10, background: '#151B33', borderRadius: 6, borderLeft: '3px solid #F0ABFC' }}>
+                    <Text style={{ fontSize: 14, color: '#FFFFFF' }}>计算都在主线程</Text>
+                    <Text style={{ fontSize: 13, color: '#94A3B8', marginTop: 3 }}>→ 搬进 Web Worker，建索引时界面不再卡</Text>
+                </Box>
+                <Box style={{ padding: 10, background: '#151B33', borderRadius: 6, borderLeft: '3px solid #F0ABFC' }}>
+                    <Text style={{ fontSize: 14, color: '#FFFFFF' }}>正文抓取是串行的</Text>
+                    <Text style={{ fontSize: 13, color: '#94A3B8', marginTop: 3 }}>→ 按域名并发；但对源站的压力要控制，不能一味求快</Text>
+                </Box>
+            </Box>
+        </Box>
+    </Box>
+
+    <Box style={{ marginTop: 12, padding: 16, background: '#151B33', borderRadius: 8, borderLeft: '3px solid #4F46E5' }}>
+        <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+            <span style={{ fontWeight: 'bold', color: '#22D3EE' }}>已经做过的取舍</span>
+            ：语义搜索设为可选、默认关（25MB 模型 + 建索引耗时），把"想不起用词"这个高频需求交给更便宜的查询改写；聚合抓取宁可慢也不催源站。
+        </Text>
+    </Box>
+
+    <Text style={{ fontSize: 14, color: '#64748B', position: 'absolute', left: 60, top: 670 }}>个人工作台 · v0.2.0</Text>
+</Slide>

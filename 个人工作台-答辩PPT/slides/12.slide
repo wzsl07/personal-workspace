@@ -1,52 +1,35 @@
 <Slide style={{ background: '#0B1020', padding: 60 }}>
     <Box style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF' }}>工程化设计 · 可观测性证据</Text>
-        <Text style={{ fontSize: 14, color: '#64748B' }}>11 / 看得见它到底在干什么</Text>
+        <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF' }}>⑨ 数据在自己手里：导出、备份、同步、体检</Text>
+        <Text style={{ fontSize: 14, color: '#64748B' }}>11 / 功能 8</Text>
     </Box>
     <Box style={{ width: '100%', height: 1, background: 'rgba(34,211,238,0.4)', marginTop: 14 }} />
 
-    <Box style={{ flexDirection: 'row', gap: 28, marginTop: 18 }}>
-        <Box style={{ width: 560 }}>
-            <Image src="assets/settings-checkup.png" style={{ width: 560, height: 320, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155' }} />
-            <Text style={{ fontSize: 16, color: '#94A3B8', marginTop: 8 }}>设置 → 一键体检：每项能力给出"能不能用 + 为什么 + 去哪修"</Text>
-        </Box>
+    <Box style={{ flexDirection: 'row', gap: 16, marginTop: 20 }}>
+        <Image src="assets/settings-data.png" style={{ width: 372, height: 230, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155' }} />
+        <Image src="assets/settings-sync.png" style={{ width: 372, height: 230, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155' }} />
+        <Image src="assets/settings-checkup.png" style={{ width: 372, height: 230, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155' }} />
+    </Box>
 
-        <Box style={{ flex: 1 }}>
-            <Box style={{ gap: 14 }}>
-                <Box style={{ padding: 14, background: '#151B33', borderRadius: 8 }}>
-                    <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                        <span style={{ fontWeight: 'bold', color: '#22D3EE' }}>抓取运行记录</span>：每轮写 fetch_runs
-                        （状态 / HTTP 码 / 耗时 / 发现 / 新增 / 错误类型），界面与 CLI 都能按时间倒序查
-                    </Text>
-                </Box>
-                <Box style={{ padding: 14, background: '#151B33', borderRadius: 8 }}>
-                    <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                        <span style={{ fontWeight: 'bold', color: '#22D3EE' }}>正文覆盖指标</span>：
-                        <span style={{ fontFamily: 'Consolas', fontSize: 16 }}> /api/content/status</span> 直接给出
-                        75 条 / 60 条有正文 / 8.3 万字
-                    </Text>
-                </Box>
-                <Box style={{ padding: 14, background: '#151B33', borderRadius: 8 }}>
-                    <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                        <span style={{ fontWeight: 'bold', color: '#22D3EE' }}>调用留痕</span>：问答结果带 provider /
-                        usedCloud / notes，界面直说"片段已送模型总结"或"纯本地，未出网"
-                    </Text>
-                </Box>
-                <Box style={{ padding: 14, background: '#151B33', borderRadius: 8 }}>
-                    <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                        <span style={{ fontWeight: 'bold', color: '#22D3EE' }}>诊断包可安全外发</span>：只含版本、环境、
-                        能力状态，<span style={{ color: '#F0ABFC' }}>代码写死不含日程 / 笔记 / 正文 / Key</span>
-                    </Text>
-                </Box>
-            </Box>
+    <Box style={{ flexDirection: 'row', gap: 16, marginTop: 16 }}>
+        <Box style={{ width: 372, padding: 14, background: '#151B33', borderRadius: 8, borderTop: '3px solid #22D3EE' }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#FFFFFF' }}>一键导出 JSON</Text>
+            <Text style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.6, marginTop: 8 }}>所有日程、笔记、附件索引导出成一个文件 —— 它是你的数据，跟这个软件无关。</Text>
+        </Box>
+        <Box style={{ width: 372, padding: 14, background: '#151B33', borderRadius: 8, borderTop: '3px solid #22D3EE' }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#FFFFFF' }}>备份与恢复</Text>
+            <Text style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.6, marginTop: 8 }}>本地快照随时存、随时回滚，误删一条也能找回来。</Text>
+        </Box>
+        <Box style={{ width: 372, padding: 14, background: '#151B33', borderRadius: 8, borderTop: '3px solid #4F46E5' }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#FFFFFF' }}>同步（可选开关）</Text>
+            <Text style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.6, marginTop: 8 }}>走你自己的 GitHub 私有仓库或本地文件夹；三路合并，冲突绝不自动覆盖。</Text>
         </Box>
     </Box>
 
-    <Box style={{ marginTop: 14, padding: 16, background: '#151B33', borderRadius: 8, borderLeft: '3px solid #22D3EE' }}>
+    <Box style={{ marginTop: 12, padding: 16, background: '#151B33', borderRadius: 8, borderLeft: '3px solid #22D3EE' }}>
         <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-            <span style={{ fontWeight: 'bold', color: '#22D3EE' }}>设计取舍</span>
-            ：不引入 Prometheus /  tracing 那套 —— 单机自用工具里，一条抓取日志 + 一张能力体检表
-            已经能回答"它现在能不能用、上一次干了什么"，重量级监控只会增加维护成本。
+            <span style={{ fontWeight: 'bold', color: '#22D3EE' }}>一键体检</span>
+            ：设置里每一项能力都告诉你"能不能用、为什么、去哪修" —— 没填 Key 就说没填 Key，模型没装就说没装，不允许"灰着但不解释"。                 右图就是体检页的真实样子。
         </Text>
     </Box>
 

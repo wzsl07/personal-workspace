@@ -1,0 +1,21 @@
+<Slide style={{ background: '#0B1020', padding: 0 }}>
+    <Box style={{ position: 'absolute', left: 0, top: 0, width: 1280, height: 720, background: 'linear-gradient(120deg, #1E1B4B 0%, #0B1020 60%)' }} />
+    <Box style={{ position: 'absolute', right: 120, top: 160, width: 260, height: 260, borderRadius: 130, background: 'rgba(34,211,238,0.16)' }} />
+    <Box style={{ position: 'absolute', right: 300, top: 400, width: 150, height: 150, borderRadius: 75, background: 'rgba(79,70,229,0.20)' }} />
+
+    <Box style={{ position: 'absolute', left: 90, top: 230, width: 700 }}>
+        <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 1.45 }}>
+            让 AI 在你的数据上干活，
+            <br />
+            而不是把你的数据交给 AI
+        </Text>
+        <Box style={{ width: 90, height: 4, background: '#22D3EE', marginTop: 26 }} />
+        <Text style={{ fontSize: 19, color: '#94A3B8', lineHeight: 1.8, marginTop: 24 }}>
+            记：随手粘贴，AI 拆成条目，你点头才算数<br />
+            找：三种检索，连订阅来的正文一起搜<br />
+            收：给个网址，之后它自己去抓
+        </Text>
+        <Text style={{ fontSize: 16, color: '#64748B', marginTop: 38 }}>github.com/wzsl07/personal-workspace　·　MIT　·　v0.2.0</Text>
+        <Text style={{ fontSize: 22, color: '#22D3EE', marginTop: 12 }}>谢谢，请指正</Text>
+    </Box>
+</Slide>

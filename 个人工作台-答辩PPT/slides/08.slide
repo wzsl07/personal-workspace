@@ -1,52 +1,44 @@
 <Slide style={{ background: '#0B1020', padding: 60 }}>
     <Box style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF' }}>结果与证据 · 三种检索，都能搜到信息流</Text>
-        <Text style={{ fontSize: 14, color: '#64748B' }}>07 / 检索能力</Text>
+        <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF' }}>⑤ 搜索：三种方式，想不起原话也能找到</Text>
+        <Text style={{ fontSize: 14, color: '#64748B' }}>07 / 功能 5</Text>
     </Box>
     <Box style={{ width: '100%', height: 1, background: 'rgba(34,211,238,0.4)', marginTop: 14 }} />
 
-    <Box style={{ flexDirection: 'row', gap: 20, marginTop: 18 }}>
-        <Box style={{ flex: 1 }}>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#22D3EE' }}>全文</Text>
-            <Image src="assets/search-fulltext.png" style={{ width: 373, height: 225, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155', marginTop: 8 }} />
+    <Box style={{ flexDirection: 'row', gap: 16, marginTop: 20 }}>
+        <Image src="assets/search-fulltext.png" style={{ width: 372, height: 210, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155' }} />
+        <Image src="assets/semantic.png" style={{ width: 372, height: 210, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155' }} />
+        <Image src="assets/search-ask-real.png" style={{ width: 372, height: 210, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155' }} />
+    </Box>
+
+    <Box style={{ flexDirection: 'row', gap: 16, marginTop: 14 }}>
+        <Box style={{ width: 372, padding: 14, background: '#151B33', borderRadius: 8, borderTop: '3px solid #22D3EE' }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#FFFFFF' }}>全文</Text>
+            <Text style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.6, marginTop: 8 }}>怎么用：想起什么词就打什么词</Text>
+            <Text style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.6 }}>什么时候用：记得大概的说法</Text>
+            <Text style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.6 }}>联网：不需要 · 毫秒级</Text>
+            <Text style={{ fontSize: 14, color: '#22D3EE', lineHeight: 1.6, marginTop: 6 }}>中文 2-gram + 前缀 + 模糊；命中太少自动放宽，不会一搜一个空</Text>
         </Box>
-        <Box style={{ flex: 1 }}>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#22D3EE' }}>语义</Text>
-            <Image src="assets/semantic.png" style={{ width: 373, height: 225, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155', marginTop: 8 }} />
+        <Box style={{ width: 372, padding: 14, background: '#151B33', borderRadius: 8, borderTop: '3px solid #4F46E5' }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#FFFFFF' }}>语义</Text>
+            <Text style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.6, marginTop: 8 }}>怎么用：打一句完整的话描述意思</Text>
+            <Text style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.6 }}>什么时候用：忘了它叫什么</Text>
+            <Text style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.6 }}>联网：不需要 · 离线向量</Text>
+            <Text style={{ fontSize: 14, color: '#22D3EE', lineHeight: 1.6, marginTop: 6 }}>可选功能，默认关：装了才有（25MB，首次加载 1.2 秒）</Text>
         </Box>
-        <Box style={{ flex: 1 }}>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#F0ABFC' }}>问答（真实 Key）</Text>
-            <Image src="assets/search-ask-real.png" style={{ width: 373, height: 225, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155', marginTop: 8 }} />
+        <Box style={{ width: 372, padding: 14, background: '#151B33', borderRadius: 8, borderTop: '3px solid #F0ABFC' }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#FFFFFF' }}>问答</Text>
+            <Text style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.6, marginTop: 8 }}>怎么用：直接问一句人话</Text>
+            <Text style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.6 }}>什么时候用：想要结论而不是列表</Text>
+            <Text style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.6 }}>联网：需要填 Key · 2–5 秒</Text>
+            <Text style={{ fontSize: 14, color: '#22D3EE', lineHeight: 1.6, marginTop: 6 }}>答案带 [1][2] 引用，点开就是原文，可核对它有没有编</Text>
         </Box>
     </Box>
 
-    <Box style={{ marginTop: 16, padding: 16, background: '#151B33', borderRadius: 8 }}>
-        <Box style={{ flexDirection: 'row', gap: 24 }}>
-            <Box style={{ flex: 1 }}>
-                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                    <span style={{ fontWeight: 'bold', color: '#22D3EE' }}>全文</span>：2-gram + 前缀 + 模糊；
-                    命中太少自动放宽为 OR。搜"班费"直中那条班级事务。
-                </Text>
-            </Box>
-            <Box style={{ flex: 1 }}>
-                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                    <span style={{ fontWeight: 'bold', color: '#22D3EE' }}>语义</span>：离线 512 维向量；
-                    搜"新生入学要准备什么"命中体检须知、选课通知，相似度 51%–56%。
-                </Text>
-            </Box>
-            <Box style={{ flex: 1 }}>
-                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                    <span style={{ fontWeight: 'bold', color: '#F0ABFC' }}>问答</span>：问"选课通知说了什么"
-                    → 直接命中 1 条 + 3 条引用，答案里带 [1][2] 可点开核对。
-                </Text>
-            </Box>
-        </Box>
-    </Box>
-
-    <Box style={{ marginTop: 14, padding: 16, background: 'linear-gradient(120deg, #4F46E5 0%, #151B33 100%)', borderRadius: 8 }}>
-        <Text style={{ fontSize: 18, color: '#FFFFFF', lineHeight: 1.5 }}>
-            <span style={{ fontWeight: 'bold', color: '#F0ABFC' }}>三者是上下游，不是替代</span>
-            ：问答的召回质量取决于本地检索，而语义补的正是"字面不同但意思相近"这一段 —— 三种共用一套搜索范围（默认日程+笔记）。
+    <Box style={{ marginTop: 12, padding: 16, background: '#151B33', borderRadius: 8, borderLeft: '3px solid #4F46E5' }}>
+        <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+            <span style={{ fontWeight: 'bold', color: '#22D3EE' }}>搜哪些范围由你勾</span>
+            ：日程 / 笔记 / 附件 / 信息流四个开关，默认只勾日程+笔记 —— 所以问"还有什么没做"不会冒出一条校园新闻；想搜订阅内容时把「信息流」勾上即可。另有「智能改写」开关（默认关）：让 AI 先把你的问法扩成同义词再搜。
         </Text>
     </Box>
 

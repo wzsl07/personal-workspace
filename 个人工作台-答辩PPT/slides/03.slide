@@ -1,68 +1,91 @@
 <Slide style={{ background: '#0B1020', padding: 60 }}>
     <Box style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF' }}>问题与目标</Text>
-        <Text style={{ fontSize: 14, color: '#64748B' }}>02 / 为什么值得做</Text>
+        <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF' }}>一共就这些功能，按使用顺序排</Text>
+        <Text style={{ fontSize: 14, color: '#64748B' }}>02 / 功能全景</Text>
     </Box>
     <Box style={{ width: '100%', height: 1, background: 'rgba(34,211,238,0.4)', marginTop: 14 }} />
 
-    <Box style={{ flexDirection: 'row', gap: 32, marginTop: 26 }}>
-        <Box style={{ width: 340, padding: 22, background: '#151B33', borderRadius: 8 }}>
-            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#F0ABFC' }}>真正的痛点</Text>
-            <Box style={{ gap: 14, marginTop: 18 }}>
-                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                    群里一条通知，要手动拆成"几月几日、做什么、几点截止"
-                </Text>
-                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                    记完之后找不到：只记得意思，关键词怎么都对不上
-                </Text>
-                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                    学院通知散在几个网站，得挨个打开才知道有没有更新
-                </Text>
-            </Box>
-        </Box>
+    <Box style={{ marginTop: 26 }}>
+        <svg width={1160} height={430} viewBox='0 0 1160 430' fontFamily='Microsoft YaHei'>
+            <g>
+                <rect x='0' y='0' width='278' height='126' rx='10' fill='#151B33' stroke='#334155' />
+                <rect x='0' y='0' width='4' height='126' rx='2' fill='#22D3EE' />
+                <text x='24' y='36' fill='#22D3EE' fontSize='20' fontWeight='bold'>①</text>
+                <text x='56' y='37' fill='#FFFFFF' fontSize='19' fontWeight='bold'>今日</text>
+                <text x='24' y='66' fill='#94A3B8' fontSize='14'>打开就知道今天要做什么</text>
+                <text x='24' y='90' fill='#94A3B8' fontSize='14'>日 / 周 / 月视图，看得到截止</text>
+                <text x='24' y='112' fill='#64748B' fontSize='13'>→ 起床第一眼</text>
 
-        <Box style={{ width: 380, padding: 22, background: '#151B33', borderRadius: 8 }}>
-            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#94A3B8' }}>现有方式的缺口</Text>
-            <Box style={{ gap: 12, marginTop: 18 }}>
-                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                    <span style={{ color: '#22D3EE' }}>日历 / 待办</span>：能存，但录入全靠手打
-                </Text>
-                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                    <span style={{ color: '#22D3EE' }}>笔记软件</span>：能搜，但仍要自己整理
-                </Text>
-                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                    <span style={{ color: '#22D3EE' }}>通用 AI 助手</span>：能理解，但落不了地 —— 它没有你的历史数据
-                </Text>
-                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                    <span style={{ color: '#22D3EE' }}>RSS 阅读器</span>：只解决"读"，不解决"变成待办"
-                </Text>
-            </Box>
-        </Box>
+                <rect x='294' y='0' width='278' height='126' rx='10' fill='#151B33' stroke='#334155' />
+                <rect x='294' y='0' width='4' height='126' rx='2' fill='#4F46E5' />
+                <text x='318' y='36' fill='#4F46E5' fontSize='20' fontWeight='bold'>②</text>
+                <text x='350' y='37' fill='#FFFFFF' fontSize='19' fontWeight='bold'>收集箱</text>
+                <text x='318' y='66' fill='#94A3B8' fontSize='14'>想到就扔进去，先存后整理</text>
+                <text x='318' y='90' fill='#94A3B8' fontSize='14'>文字 / 截图 / 文件都收</text>
+                <text x='318' y='112' fill='#64748B' fontSize='13'>→ 记录门槛最低的一处</text>
 
-        <Box style={{ width: 380, padding: 22, background: 'linear-gradient(160deg, #4F46E5 0%, #151B33 100%)', borderRadius: 8 }}>
-            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#FFFFFF' }}>成功标准（可验证）</Text>
-            <Box style={{ gap: 12, marginTop: 18 }}>
-                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                    ① 一段话 → 结构化条目，<span style={{ color: '#F0ABFC' }}>带时间与优先级</span>
-                </Text>
-                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                    ② 只记得意思也能搜到，<span style={{ color: '#F0ABFC' }}>包括订阅正文</span>
-                </Text>
-                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                    ③ 问一句就有答案 + <span style={{ color: '#F0ABFC' }}>引用来源</span>可点开
-                </Text>
-                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                    ④ 断网 / 没 Key 时，<span style={{ color: '#F0ABFC' }}>核心功能仍可用</span>
-                </Text>
-            </Box>
-        </Box>
-    </Box>
+                <rect x='588' y='0' width='278' height='126' rx='10' fill='#151B33' stroke='#334155' />
+                <rect x='588' y='0' width='4' height='126' rx='2' fill='#4F46E5' />
+                <text x='612' y='36' fill='#4F46E5' fontSize='20' fontWeight='bold'>③</text>
+                <text x='644' y='37' fill='#FFFFFF' fontSize='19' fontWeight='bold'>AI 解析 · 草稿箱</text>
+                <text x='612' y='66' fill='#94A3B8' fontSize='14'>一段话 → 多条带时间地点的条目</text>
+                <text x='612' y='90' fill='#94A3B8' fontSize='14'>你确认后才进正式数据</text>
+                <text x='612' y='112' fill='#64748B' fontSize='13'>→ 省掉手打</text>
 
-    <Box style={{ marginTop: 22, padding: 18, background: '#151B33', borderRadius: 8, borderLeft: '3px solid #22D3EE' }}>
-        <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-            <span style={{ fontWeight: 'bold', color: '#22D3EE' }}>要解决的不是"记下来"，而是"理解 + 落地 + 找得到"这一整条链</span>
-            —— 现有工具各自只做到了其中一段。
-        </Text>
+                <rect x='882' y='0' width='278' height='126' rx='10' fill='#151B33' stroke='#334155' />
+                <rect x='882' y='0' width='4' height='126' rx='2' fill='#4F46E5' />
+                <text x='906' y='36' fill='#4F46E5' fontSize='20' fontWeight='bold'>④</text>
+                <text x='938' y='37' fill='#FFFFFF' fontSize='19' fontWeight='bold'>日历</text>
+                <text x='906' y='66' fill='#94A3B8' fontSize='14'>确认后的条目落在时间轴上</text>
+                <text x='906' y='90' fill='#94A3B8' fontSize='14'>桌面到点弹系统通知</text>
+                <text x='906' y='112' fill='#64748B' fontSize='13'>→ 知道什么时候该做</text>
+            </g>
+
+            <g>
+                <rect x='0' y='146' width='278' height='126' rx='10' fill='#151B33' stroke='#334155' />
+                <rect x='0' y='146' width='4' height='126' rx='2' fill='#22D3EE' />
+                <text x='24' y='182' fill='#22D3EE' fontSize='20' fontWeight='bold'>⑤</text>
+                <text x='56' y='183' fill='#FFFFFF' fontSize='19' fontWeight='bold'>知识库 · 附件</text>
+                <text x='24' y='212' fill='#94A3B8' fontSize='14'>笔记与日程双向链接</text>
+                <text x='24' y='236' fill='#94A3B8' fontSize='14'>PDF/Word/图片正文进索引</text>
+                <text x='24' y='258' fill='#64748B' fontSize='13'>→ 文件里的字也搜得到</text>
+
+                <rect x='294' y='146' width='278' height='126' rx='10' fill='#151B33' stroke='#334155' />
+                <rect x='294' y='146' width='4' height='126' rx='2' fill='#22D3EE' />
+                <text x='318' y='182' fill='#22D3EE' fontSize='20' fontWeight='bold'>⑥</text>
+                <text x='350' y='183' fill='#FFFFFF' fontSize='19' fontWeight='bold'>搜索（三种）</text>
+                <text x='318' y='212' fill='#94A3B8' fontSize='14'>全文 / 语义 / 问答</text>
+                <text x='318' y='236' fill='#94A3B8' fontSize='14'>可勾范围，问答带引用</text>
+                <text x='318' y='258' fill='#64748B' fontSize='13'>→ 忘了原话也能找回来</text>
+
+                <rect x='588' y='146' width='278' height='126' rx='10' fill='#151B33' stroke='#334155' />
+                <rect x='588' y='146' width='4' height='126' rx='2' fill='#F0ABFC' />
+                <text x='612' y='182' fill='#F0ABFC' fontSize='20' fontWeight='bold'>⑦</text>
+                <text x='644' y='183' fill='#FFFFFF' fontSize='19' fontWeight='bold'>信息流</text>
+                <text x='612' y='212' fill='#94A3B8' fontSize='14'>给个网址就自动订阅并抓正文</text>
+                <text x='612' y='236' fill='#94A3B8' fontSize='14'>点标题出 AI 摘要 / 显示原文</text>
+                <text x='612' y='258' fill='#64748B' fontSize='13'>→ 不用挨个开网站</text>
+
+                <rect x='882' y='146' width='278' height='126' rx='10' fill='#151B33' stroke='#334155' />
+                <rect x='882' y='146' width='4' height='126' rx='2' fill='#F0ABFC' />
+                <text x='906' y='182' fill='#F0ABFC' fontSize='20' fontWeight='bold'>⑧</text>
+                <text x='938' y='183' fill='#FFFFFF' fontSize='19' fontWeight='bold'>数据 · 多端 · 提醒</text>
+                <text x='906' y='212' fill='#94A3B8' fontSize='14'>一键导出 / 备份 / 同步</text>
+                <text x='906' y='236' fill='#94A3B8' fontSize='14'>托盘 · 悬浮窗 · 快捷键</text>
+                <text x='906' y='258' fill='#64748B' fontSize='13'>→ 换设备、随手记</text>
+            </g>
+
+            <g>
+                <rect x='0' y='300' width='1160' height='110' rx='10' fill='#151B33' stroke='#334155' />
+                <text x='28' y='334' fill='#FFFFFF' fontSize='18' fontWeight='bold'>贯穿全程的三件事</text>
+                <text x='28' y='362' fill='#94A3B8' fontSize='14'>· AI 只写草稿</text>
+                <text x='28' y='386' fill='#64748B' fontSize='13'>— 任何解析结果都必须你点确认才写入正式数据</text>
+                <text x='400' y='362' fill='#94A3B8' fontSize='14'>· 数据在你自己设备上</text>
+                <text x='400' y='386' fill='#64748B' fontSize='13'>— 没有账号、没有服务器，一键导出就是你的文件</text>
+                <text x='790' y='362' fill='#94A3B8' fontSize='14'>· 断网也能用</text>
+                <text x='790' y='386' fill='#64748B' fontSize='13'>— AI 与同步是开关，关掉只剩本地功能，一样完整</text>
+            </g>
+        </svg>
     </Box>
 
     <Text style={{ fontSize: 14, color: '#64748B', position: 'absolute', left: 60, top: 670 }}>个人工作台 · v0.2.0</Text>

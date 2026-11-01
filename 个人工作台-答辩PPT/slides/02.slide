@@ -1,51 +1,90 @@
 <Slide style={{ background: '#0B1020', padding: 60 }}>
     <Box style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF' }}>项目概述</Text>
-        <Text style={{ fontSize: 14, color: '#64748B' }}>01 / 是什么</Text>
+        <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF' }}>一天怎么用：从起床到睡前</Text>
+        <Text style={{ fontSize: 14, color: '#64748B' }}>01 / 整体动线</Text>
     </Box>
     <Box style={{ width: '100%', height: 1, background: 'rgba(34,211,238,0.4)', marginTop: 14 }} />
 
-    <Box style={{ flexDirection: 'row', gap: 40, marginTop: 28, height: 470 }}>
-        <Box style={{ width: 470, justifyContent: 'space-between' }}>
-            <Box>
-                <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 1.3 }}>
-                    把随手记的碎片
-                    <br />
-                    变成<span style={{ color: '#22D3EE' }}>能找到</span>的日程与知识
-                </Text>
-                <Text style={{ fontSize: 18, color: '#94A3B8', lineHeight: 1.6, marginTop: 20 }}>
-                    它先把"一段话"变成结构化的日程条目，再让你用三种方式把它找回来；
-                    顺带把你常看的几个网站聚合成一条信息流，并且能按意思搜到正文。
-                </Text>
-            </Box>
+    <Box style={{ marginTop: 22 }}>
+        <svg width={1160} height={330} viewBox='0 0 1160 330' fontFamily='Microsoft YaHei'>
+            <text x='0' y='20' fill='#94A3B8' fontSize='15'>顺时针走一遍：记录 → 理解 → 落地 → 提醒 → 找回 → 自动收</text>
 
-            <Box style={{ gap: 14 }}>
-                <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <Box style={{ width: 8, height: 8, borderRadius: 4, background: '#4F46E5' }} />
-                    <Text style={{ fontSize: 18, color: '#E2E8F0' }}>录入：一段自然语 → 结构化条目（可人工确认）</Text>
-                </Box>
-                <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <Box style={{ width: 8, height: 8, borderRadius: 4, background: '#22D3EE' }} />
-                    <Text style={{ fontSize: 18, color: '#E2E8F0' }}>检索：全文 / 语义 / 问答，三种都能搜信息流</Text>
-                </Box>
-                <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <Box style={{ width: 8, height: 8, borderRadius: 4, background: '#F0ABFC' }} />
-                    <Text style={{ fontSize: 18, color: '#E2E8F0' }}>形态：桌面 + 网页 + 手机 PWA，数据在你自己设备上</Text>
-                </Box>
-            </Box>
-        </Box>
+            <g>
+                <rect x='0' y='40' width='152' height='118' rx='10' fill='#151B33' stroke='#334155' />
+                <text x='16' y='68' fill='#22D3EE' fontSize='15' fontWeight='bold'>01 · 早上 8:00</text>
+                <text x='16' y='96' fill='#FFFFFF' fontSize='17' fontWeight='bold'>打开「今日」</text>
+                <text x='16' y='120' fill='#94A3B8' fontSize='13'>今天/本周要做什么</text>
+                <text x='16' y='142' fill='#64748B' fontSize='13'>一眼看完，不用翻</text>
+                <path d='M158 99 L172 99' stroke='#475569' strokeWidth='2' />
+                <path d='M166 93 L172 99 L166 105' fill='none' stroke='#475569' strokeWidth='2' />
 
-        <Box style={{ width: 650, position: 'relative' }}>
-            <Image src="assets/today.png" style={{ width: 400, height: 250, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155' }} />
-            <Image src="assets/calendar.png" style={{ width: 300, height: 188, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155', position: 'absolute', right: 0, top: 150 }} />
-            <Image src="assets/graph.png" style={{ width: 220, height: 138, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155', position: 'absolute', left: 20, top: 300 }} />
-        </Box>
+                <rect x='168' y='40' width='152' height='118' rx='10' fill='#151B33' stroke='#4F46E5' />
+                <text x='184' y='68' fill='#22D3EE' fontSize='15' fontWeight='bold'>02 · 收到通知</text>
+                <text x='184' y='96' fill='#FFFFFF' fontSize='17' fontWeight='bold'>粘进收集箱</text>
+                <text x='184' y='120' fill='#94A3B8' fontSize='13'>不用管格式</text>
+                <text x='184' y='142' fill='#64748B' fontSize='13'>想到什么写什么</text>
+                <path d='M326 99 L340 99' stroke='#475569' strokeWidth='2' />
+                <path d='M334 93 L340 99 L334 105' fill='none' stroke='#475569' strokeWidth='2' />
+
+                <rect x='336' y='40' width='152' height='118' rx='10' fill='#151B33' stroke='#4F46E5' />
+                <text x='352' y='68' fill='#22D3EE' fontSize='15' fontWeight='bold'>03 · AI 帮你看</text>
+                <text x='352' y='96' fill='#FFFFFF' fontSize='17' fontWeight='bold'>拆成 9 条</text>
+                <text x='352' y='120' fill='#94A3B8' fontSize='13'>时间/地点/优先级</text>
+                <text x='352' y='142' fill='#64748B' fontSize='13'>没把握的标黄</text>
+                <path d='M494 99 L508 99' stroke='#475569' strokeWidth='2' />
+                <path d='M502 93 L508 99 L502 105' fill='none' stroke='#475569' strokeWidth='2' />
+
+                <rect x='504' y='40' width='152' height='118' rx='10' fill='#151B33' stroke='#334155' />
+                <text x='520' y='68' fill='#22D3EE' fontSize='15' fontWeight='bold'>04 · 你点确认</text>
+                <text x='520' y='96' fill='#FFFFFF' fontSize='17' fontWeight='bold'>进草稿箱等你</text>
+                <text x='520' y='120' fill='#94A3B8' fontSize='13'>左右对照着改</text>
+                <text x='520' y='142' fill='#64748B' fontSize='13'>不确认就不入库</text>
+                <path d='M662 99 L676 99' stroke='#475569' strokeWidth='2' />
+                <path d='M670 93 L676 99 L670 105' fill='none' stroke='#475569' strokeWidth='2' />
+
+                <rect x='672' y='40' width='152' height='118' rx='10' fill='#151B33' stroke='#334155' />
+                <text x='688' y='68' fill='#22D3EE' fontSize='15' fontWeight='bold'>05 · 进日历</text>
+                <text x='688' y='96' fill='#FFFFFF' fontSize='17' fontWeight='bold'>到点提醒你</text>
+                <text x='688' y='120' fill='#94A3B8' fontSize='13'>系统通知 / 托盘</text>
+                <text x='688' y='142' fill='#64748B' fontSize='13'>不用一直盯着</text>
+                <path d='M830 99 L844 99' stroke='#475569' strokeWidth='2' />
+                <path d='M838 93 L844 99 L838 105' fill='none' stroke='#475569' strokeWidth='2' />
+
+                <rect x='840' y='40' width='152' height='118' rx='10' fill='#151B33' stroke='#22D3EE' />
+                <text x='856' y='68' fill='#22D3EE' fontSize='15' fontWeight='bold'>06 · 想找东西</text>
+                <text x='856' y='96' fill='#FFFFFF' fontSize='17' fontWeight='bold'>三种检索</text>
+                <text x='856' y='120' fill='#94A3B8' fontSize='13'>连订阅正文一起</text>
+                <text x='856' y='142' fill='#64748B' fontSize='13'>忘了原话也能找到</text>
+                <path d='M998 99 L1012 99' stroke='#475569' strokeWidth='2' />
+                <path d='M1006 93 L1012 99 L1006 105' fill='none' stroke='#475569' strokeWidth='2' />
+
+                <rect x='1008' y='40' width='152' height='118' rx='10' fill='#151B33' stroke='#F0ABFC' />
+                <text x='1024' y='68' fill='#22D3EE' fontSize='15' fontWeight='bold'>07 · 后台一直跑</text>
+                <text x='1024' y='96' fill='#FFFFFF' fontSize='17' fontWeight='bold'>信息流自动收</text>
+                <text x='1024' y='120' fill='#94A3B8' fontSize='13'>订阅的站定时抓</text>
+                <text x='1024' y='142' fill='#64748B' fontSize='13'>醒来就有新的</text>
+            </g>
+
+            <g>
+                <rect x='0' y='190' width='560' height='118' rx='10' fill='#151B33' stroke='#334155' />
+                <text x='24' y='222' fill='#FFFFFF' fontSize='18' fontWeight='bold'>它替你做的，是"理解"和"找得到"</text>
+                <text x='24' y='252' fill='#94A3B8' fontSize='14'>记一条通知原本要：读一遍 → 拆出时间地点 → 手打进日历</text>
+                <text x='24' y='276' fill='#94A3B8' fontSize='14'>现在只需要：粘贴 → 看一眼标黄的地方 → 点确认</text>
+                <text x='24' y='298' fill='#22D3EE' fontSize='14'>472 字班级群消息 → 9 条结构化条目，约 20 秒</text>
+
+                <rect x='600' y='190' width='560' height='118' rx='10' fill='#151B33' stroke='#334155' />
+                <text x='624' y='222' fill='#FFFFFF' fontSize='18' fontWeight='bold'>以及"不用再挨个开网站"</text>
+                <text x='624' y='252' fill='#94A3B8' fontSize='14'>学院通知散在 3 个网站 → 加一次网址，之后自动抓</text>
+                <text x='624' y='276' fill='#94A3B8' fontSize='14'>抓来的正文进索引 → 搜"体检"能命中通知正文里的安排</text>
+                <text x='624' y='298' fill='#22D3EE' fontSize='14'>5 个来源 · 75 条 · 60 条有正文（8.3 万字）</text>
+            </g>
+        </svg>
     </Box>
 
-    <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 16, padding: 16, background: '#151B33', borderRadius: 8 }}>
-        <Text style={{ fontSize: 18, color: '#E2E8F0' }}>
-            <span style={{ color: '#22D3EE', fontWeight: 'bold' }}>一句话</span>
-            ：没有账号、没有服务器、默认不联网 —— AI 与同步都是你自己决定要不要开的开关。
+    <Box style={{ marginTop: 10, padding: 16, background: '#151B33', borderRadius: 8, borderLeft: '3px solid #22D3EE' }}>
+        <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+            <span style={{ fontWeight: 'bold', color: '#22D3EE' }}>设计主线</span>
+            ：每一步都尽量少让你操作一点 —— 能粘贴就不让你填表，能自动抓就不让你去开网页，能按意思搜就不要求你想起原话。
         </Text>
     </Box>
 

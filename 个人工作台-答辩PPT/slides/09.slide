@@ -1,47 +1,37 @@
 <Slide style={{ background: '#0B1020', padding: 60 }}>
     <Box style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF' }}>结果与证据 · 信息流：抓得来，也搜得到正文</Text>
-        <Text style={{ fontSize: 14, color: '#64748B' }}>08 / 聚合与正文入库</Text>
+        <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF' }}>⑥ 信息流：给个网址，之后它自己收</Text>
+        <Text style={{ fontSize: 14, color: '#64748B' }}>08 / 功能 6</Text>
     </Box>
     <Box style={{ width: '100%', height: 1, background: 'rgba(34,211,238,0.4)', marginTop: 14 }} />
 
-    <Box style={{ flexDirection: 'row', gap: 32, marginTop: 18 }}>
-        <Box style={{ width: 340 }}>
-            <Box style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
-                <Text style={{ fontSize: 96, fontWeight: 'bold', color: '#F0ABFC', lineHeight: 1 }}>60</Text>
-                <Text style={{ fontSize: 22, color: '#94A3B8', marginBottom: 16 }}>/ 75 条有正文</Text>
-            </Box>
-            <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.6, marginTop: 10 }}>
-                共 <span style={{ color: '#22D3EE', fontWeight: 'bold' }}>8.3 万字</span>，
-                平均每条 1,447 字 —— 这些正文全部进了搜索索引。
-            </Text>
-            <Box style={{ gap: 12, marginTop: 20 }}>
-                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                    <span style={{ color: '#22D3EE', fontWeight: 'bold' }}>RSS 源零额外请求</span>：直接取 feed 自带的全文字段
-                </Text>
-                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                    <span style={{ color: '#22D3EE', fontWeight: 'bold' }}>网页源限速抓详情</span>：每域名 1.5 秒，62 条约 2 分钟
-                </Text>
-                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-                    <span style={{ color: '#94A3B8' }}>没拿到的 15 条</span>：13 条 robots 不允许 + 2 条 PDF 附件，标记为失败不重试
-                </Text>
-            </Box>
-        </Box>
+    <Box style={{ flexDirection: 'row', gap: 22, marginTop: 20 }}>
+        <Image src="assets/feed-list.png" style={{ width: 660, height: 372, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155' }} />
 
-        <Box style={{ width: 740 }}>
-            <Image src="assets/feed-list.png" style={{ width: 740, height: 300, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155' }} />
-            <Box style={{ flexDirection: 'row', gap: 16, marginTop: 12 }}>
-                <Image src="assets/feed-ai-summary.png" style={{ width: 362, height: 135, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155' }} />
-                <Image src="assets/feed-article.jpg" style={{ width: 362, height: 135, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155' }} />
+        <Box style={{ width: 478, gap: 12 }}>
+            <Box style={{ padding: 12, background: '#151B33', borderRadius: 8, borderLeft: '3px solid #F0ABFC' }}>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#FFFFFF' }}>添加只要一个网址</Text>
+                <Text style={{ fontSize: 14, color: '#94A3B8', marginTop: 6 }}>粘首页地址，它自己探测是 RSS / JSON / 网页</Text>
+            </Box>
+            <Box style={{ padding: 12, background: '#151B33', borderRadius: 8, borderLeft: '3px solid #F0ABFC' }}>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#FFFFFF' }}>按网站自己的栏目分类</Text>
+                <Text style={{ fontSize: 14, color: '#94A3B8', marginTop: 6 }}>通知公告 / 新闻动态 分开排，顶部可快筛</Text>
+            </Box>
+            <Box style={{ padding: 12, background: '#151B33', borderRadius: 8, borderLeft: '3px solid #F0ABFC' }}>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#FFFFFF' }}>定时自己去抓，不用你管</Text>
+                <Text style={{ fontSize: 14, color: '#94A3B8', marginTop: 6 }}>后台常驻，浏览器关了照样抓；没更新就跳过</Text>
+            </Box>
+            <Box style={{ padding: 12, background: '#151B33', borderRadius: 8, borderLeft: '3px solid #F0ABFC' }}>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#FFFFFF' }}>读到哪一层都行</Text>
+                <Text style={{ fontSize: 14, color: '#94A3B8', marginTop: 6 }}>AI 摘要 / 显示原文（抽屉） / 打开网址</Text>
             </Box>
         </Box>
     </Box>
 
-    <Box style={{ marginTop: 14, padding: 16, background: '#151B33', borderRadius: 8, borderLeft: '3px solid #22D3EE' }}>
-        <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
-            <span style={{ fontWeight: 'bold', color: '#22D3EE' }}>闭环</span>
-            ：定时抓取 → 按栏目归类 → 自动补正文 → 进索引 → 三种检索都能命中；
-            点标题就地出 AI 摘要，「显示原文」在抽屉里渲染清洗过的正文。
+    <Box style={{ marginTop: 12, padding: 14, background: '#151B33', borderRadius: 8, borderLeft: '3px solid #22D3EE' }}>
+        <Text style={{ fontSize: 18, color: '#E2E8F0' }}>
+            <span style={{ fontWeight: 'bold', color: '#22D3EE' }}>方便在哪</span>
+            ：以前要挨个打开三个学院网站刷一遍才知道有没有新通知，现在打开就是按栏目排好的列表。
         </Text>
     </Box>
 
