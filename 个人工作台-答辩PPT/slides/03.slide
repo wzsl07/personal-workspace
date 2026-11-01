@@ -1,0 +1,69 @@
+<Slide style={{ background: '#0B1020', padding: 60 }}>
+    <Box style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF' }}>问题与目标</Text>
+        <Text style={{ fontSize: 14, color: '#64748B' }}>02 / 为什么值得做</Text>
+    </Box>
+    <Box style={{ width: '100%', height: 1, background: 'rgba(34,211,238,0.4)', marginTop: 14 }} />
+
+    <Box style={{ flexDirection: 'row', gap: 32, marginTop: 26 }}>
+        <Box style={{ width: 340, padding: 22, background: '#151B33', borderRadius: 8 }}>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#F0ABFC' }}>真正的痛点</Text>
+            <Box style={{ gap: 14, marginTop: 18 }}>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    群里一条通知，要手动拆成"几月几日、做什么、几点截止"
+                </Text>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    记完之后找不到：只记得意思，关键词怎么都对不上
+                </Text>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    学院通知散在几个网站，得挨个打开才知道有没有更新
+                </Text>
+            </Box>
+        </Box>
+
+        <Box style={{ width: 380, padding: 22, background: '#151B33', borderRadius: 8 }}>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#94A3B8' }}>现有方式的缺口</Text>
+            <Box style={{ gap: 12, marginTop: 18 }}>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    <span style={{ color: '#22D3EE' }}>日历 / 待办</span>：能存，但录入全靠手打
+                </Text>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    <span style={{ color: '#22D3EE' }}>笔记软件</span>：能搜，但仍要自己整理
+                </Text>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    <span style={{ color: '#22D3EE' }}>通用 AI 助手</span>：能理解，但落不了地 —— 它没有你的历史数据
+                </Text>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    <span style={{ color: '#22D3EE' }}>RSS 阅读器</span>：只解决"读"，不解决"变成待办"
+                </Text>
+            </Box>
+        </Box>
+
+        <Box style={{ width: 380, padding: 22, background: 'linear-gradient(160deg, #4F46E5 0%, #151B33 100%)', borderRadius: 8 }}>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#FFFFFF' }}>成功标准（可验证）</Text>
+            <Box style={{ gap: 12, marginTop: 18 }}>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    ① 一段话 → 结构化条目，<span style={{ color: '#F0ABFC' }}>带时间与优先级</span>
+                </Text>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    ② 只记得意思也能搜到，<span style={{ color: '#F0ABFC' }}>包括订阅正文</span>
+                </Text>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    ③ 问一句就有答案 + <span style={{ color: '#F0ABFC' }}>引用来源</span>可点开
+                </Text>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    ④ 断网 / 没 Key 时，<span style={{ color: '#F0ABFC' }}>核心功能仍可用</span>
+                </Text>
+            </Box>
+        </Box>
+    </Box>
+
+    <Box style={{ marginTop: 22, padding: 18, background: '#151B33', borderRadius: 8, borderLeft: '3px solid #22D3EE' }}>
+        <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+            <span style={{ fontWeight: 'bold', color: '#22D3EE' }}>要解决的不是"记下来"，而是"理解 + 落地 + 找得到"这一整条链</span>
+            —— 现有工具各自只做到了其中一段。
+        </Text>
+    </Box>
+
+    <Text style={{ fontSize: 14, color: '#64748B', position: 'absolute', left: 60, top: 670 }}>个人工作台 · v0.2.0</Text>
+</Slide>

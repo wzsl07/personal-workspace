@@ -1,0 +1,108 @@
+<Slide style={{ background: '#0B1020', padding: 60 }}>
+    <Box style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF' }}>核心实现 · Agent 三条链路</Text>
+        <Text style={{ fontSize: 14, color: '#64748B' }}>04 / 规划 → 调工具 → 校验 → 落地</Text>
+    </Box>
+    <Box style={{ width: '100%', height: 1, background: 'rgba(34,211,238,0.4)', marginTop: 14 }} />
+
+    <Box style={{ marginTop: 18 }}>
+        <svg width={1160} height={400} viewBox='0 0 1160 400' fontFamily='Microsoft YaHei'>
+            <text x='0' y='22' fill='#94A3B8' fontSize='16'>不是开放式 ReAct 循环，而是三条固定链路 —— 个人数据场景下，可预测比通用更重要</text>
+
+            <g>
+                <rect x='0' y='40' width='86' height='62' rx='8' fill='#4F46E5' />
+                <text x='43' y='78' fill='#FFFFFF' fontSize='18' fontWeight='bold' textAnchor='middle'>理解</text>
+                <rect x='100' y='40' width='190' height='62' rx='8' fill='#151B33' stroke='#334155' />
+                <text x='195' y='70' fill='#E2E8F0' fontSize='17' textAnchor='middle'>粘贴一段通知</text>
+                <text x='195' y='90' fill='#94A3B8' fontSize='14' textAnchor='middle'>472 字班级群消息</text>
+                <path d='M298 71 L322 71' stroke='#475569' strokeWidth='2' />
+                <path d='M316 65 L322 71 L316 77' fill='none' stroke='#475569' strokeWidth='2' />
+                <rect x='330' y='40' width='190' height='62' rx='8' fill='#151B33' stroke='#4F46E5' />
+                <text x='425' y='70' fill='#FFFFFF' fontSize='17' textAnchor='middle'>模型输出 JSON</text>
+                <text x='425' y='90' fill='#94A3B8' fontSize='14' textAnchor='middle'>类型/时间/优先级/置信度</text>
+                <path d='M528 71 L552 71' stroke='#475569' strokeWidth='2' />
+                <path d='M546 65 L552 71 L546 77' fill='none' stroke='#475569' strokeWidth='2' />
+                <rect x='560' y='40' width='190' height='62' rx='8' fill='#151B33' stroke='#334155' />
+                <text x='655' y='70' fill='#E2E8F0' fontSize='17' textAnchor='middle'>白名单校验 + 兜底</text>
+                <text x='655' y='90' fill='#94A3B8' fontSize='14' textAnchor='middle'>失败→Ollama→本地规则</text>
+                <path d='M758 71 L782 71' stroke='#475569' strokeWidth='2' />
+                <path d='M776 65 L782 71 L776 77' fill='none' stroke='#475569' strokeWidth='2' />
+                <rect x='790' y='40' width='180' height='62' rx='8' fill='#151B33' stroke='#334155' />
+                <text x='880' y='70' fill='#E2E8F0' fontSize='17' textAnchor='middle'>草稿箱</text>
+                <text x='880' y='90' fill='#94A3B8' fontSize='14' textAnchor='middle'>标黄 = 模型没把握</text>
+                <path d='M978 71 L1002 71' stroke='#475569' strokeWidth='2' />
+                <path d='M996 65 L1002 71 L996 77' fill='none' stroke='#475569' strokeWidth='2' />
+                <rect x='1010' y='40' width='150' height='62' rx='8' fill='#22D3EE' />
+                <text x='1085' y='70' fill='#0B1020' fontSize='17' fontWeight='bold' textAnchor='middle'>你确认才入库</text>
+                <text x='1085' y='90' fill='#0B1020' fontSize='14' textAnchor='middle'>不会自作主张</text>
+            </g>
+
+            <g>
+                <rect x='0' y='160' width='86' height='62' rx='8' fill='#22D3EE' />
+                <text x='43' y='198' fill='#0B1020' fontSize='18' fontWeight='bold' textAnchor='middle'>检索</text>
+                <rect x='100' y='160' width='190' height='62' rx='8' fill='#151B33' stroke='#334155' />
+                <text x='195' y='190' fill='#E2E8F0' fontSize='17' textAnchor='middle'>自然语言提问</text>
+                <text x='195' y='210' fill='#94A3B8' fontSize='14' textAnchor='middle'>选课通知说了什么</text>
+                <path d='M298 191 L322 191' stroke='#475569' strokeWidth='2' />
+                <path d='M316 185 L322 191 L316 197' fill='none' stroke='#475569' strokeWidth='2' />
+                <rect x='330' y='160' width='190' height='62' rx='8' fill='#151B33' stroke='#22D3EE' />
+                <text x='425' y='190' fill='#FFFFFF' fontSize='17' textAnchor='middle'>模型规划查询条件</text>
+                <text x='425' y='210' fill='#94A3B8' fontSize='14' textAnchor='middle'>scope / keyword / 时间</text>
+                <path d='M528 191 L552 191' stroke='#475569' strokeWidth='2' />
+                <path d='M546 185 L552 191 L546 197' fill='none' stroke='#475569' strokeWidth='2' />
+                <rect x='560' y='160' width='190' height='62' rx='8' fill='#151B33' stroke='#334155' />
+                <text x='655' y='190' fill='#E2E8F0' fontSize='17' textAnchor='middle'>本地执行检索</text>
+                <text x='655' y='210' fill='#94A3B8' fontSize='14' textAnchor='middle'>结构化 + 全文 + 向量</text>
+                <path d='M758 191 L782 191' stroke='#475569' strokeWidth='2' />
+                <path d='M776 185 L782 191 L776 197' fill='none' stroke='#475569' strokeWidth='2' />
+                <rect x='790' y='160' width='180' height='62' rx='8' fill='#151B33' stroke='#334155' />
+                <text x='880' y='190' fill='#E2E8F0' fontSize='17' textAnchor='middle'>模型总结</text>
+                <text x='880' y='210' fill='#94A3B8' fontSize='14' textAnchor='middle'>片段标注来源</text>
+                <path d='M978 191 L1002 191' stroke='#475569' strokeWidth='2' />
+                <path d='M996 185 L1002 191 L996 197' fill='none' stroke='#475569' strokeWidth='2' />
+                <rect x='1010' y='160' width='150' height='62' rx='8' fill='#F0ABFC' />
+                <text x='1085' y='190' fill='#0B1020' fontSize='17' fontWeight='bold' textAnchor='middle'>答案 + [1][2] 引用</text>
+                <text x='1085' y='210' fill='#0B1020' fontSize='14' textAnchor='middle'>可点开核对</text>
+            </g>
+
+            <g>
+                <rect x='0' y='280' width='86' height='62' rx='8' fill='#F0ABFC' />
+                <text x='43' y='318' fill='#0B1020' fontSize='18' fontWeight='bold' textAnchor='middle'>聚合</text>
+                <rect x='100' y='280' width='190' height='62' rx='8' fill='#151B33' stroke='#334155' />
+                <text x='195' y='310' fill='#E2E8F0' fontSize='17' textAnchor='middle'>定时触发</text>
+                <text x='195' y='330' fill='#94A3B8' fontSize='14' textAnchor='middle'>并发 8 · 每域名 3s</text>
+                <path d='M298 311 L322 311' stroke='#475569' strokeWidth='2' />
+                <path d='M316 305 L322 311 L316 317' fill='none' stroke='#475569' strokeWidth='2' />
+                <rect x='330' y='280' width='190' height='62' rx='8' fill='#151B33' stroke='#334155' />
+                <text x='425' y='310' fill='#E2E8F0' fontSize='17' textAnchor='middle'>抓取（合规）</text>
+                <text x='425' y='330' fill='#94A3B8' fontSize='14' textAnchor='middle'>robots · SSRF · 304</text>
+                <path d='M528 311 L552 311' stroke='#475569' strokeWidth='2' />
+                <path d='M546 305 L552 311 L546 317' fill='none' stroke='#475569' strokeWidth='2' />
+                <rect x='560' y='280' width='190' height='62' rx='8' fill='#151B33' stroke='#334155' />
+                <text x='655' y='310' fill='#E2E8F0' fontSize='17' textAnchor='middle'>解析去重</text>
+                <text x='655' y='330' fill='#94A3B8' fontSize='14' textAnchor='middle'>guid/url/内容哈希</text>
+                <path d='M758 311 L782 311' stroke='#475569' strokeWidth='2' />
+                <path d='M776 305 L782 311 L776 317' fill='none' stroke='#475569' strokeWidth='2' />
+                <rect x='790' y='280' width='180' height='62' rx='8' fill='#151B33' stroke='#334155' />
+                <text x='880' y='310' fill='#E2E8F0' fontSize='17' textAnchor='middle'>存库 + 补正文</text>
+                <text x='880' y='330' fill='#94A3B8' fontSize='14' textAnchor='middle'>→ 进搜索索引</text>
+                <path d='M978 311 L1002 311' stroke='#475569' strokeWidth='2' />
+                <path d='M996 305 L1002 311 L996 317' fill='none' stroke='#475569' strokeWidth='2' />
+                <rect x='1010' y='280' width='150' height='62' rx='8' fill='#151B33' stroke='#F0ABFC' />
+                <text x='1085' y='310' fill='#E2E8F0' fontSize='17' textAnchor='middle'>健康自检</text>
+                <text x='1085' y='330' fill='#94A3B8' fontSize='14' textAnchor='middle'>退避 / 隔离可恢复</text>
+            </g>
+
+            <path d='M1002 191 L1010 191' stroke='#475569' strokeWidth='2' />
+        </svg>
+    </Box>
+
+    <Box style={{ marginTop: 8, padding: 16, background: '#151B33', borderRadius: 8, borderLeft: '3px solid #22D3EE' }}>
+        <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+            <span style={{ fontWeight: 'bold', color: '#22D3EE' }}>三条链路共用同一套机制</span>
+            ：输出必须是 JSON → 白名单校验 → 字段兜底 → 失败降级；模型拿不到"直接改你数据"的权限。
+        </Text>
+    </Box>
+
+    <Text style={{ fontSize: 14, color: '#64748B', position: 'absolute', left: 60, top: 670 }}>个人工作台 · v0.2.0</Text>
+</Slide>

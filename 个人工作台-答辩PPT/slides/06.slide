@@ -1,0 +1,79 @@
+<Slide style={{ background: '#0B1020', padding: 60 }}>
+    <Box style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF' }}>核心实现 · 系统架构</Text>
+        <Text style={{ fontSize: 14, color: '#64748B' }}>05 / 为什么这么拆</Text>
+    </Box>
+    <Box style={{ width: '100%', height: 1, background: 'rgba(34,211,238,0.4)', marginTop: 14 }} />
+
+    <Box style={{ marginTop: 16 }}>
+        <svg width={1160} height={400} viewBox='0 0 1160 400' fontFamily='Microsoft YaHei'>
+            <rect x='0' y='8' width='360' height='132' rx='10' fill='#151B33' stroke='#334155' />
+            <text x='20' y='38' fill='#22D3EE' fontSize='18' fontWeight='bold'>界面层 · React 18</text>
+            <text x='20' y='64' fill='#E2E8F0' fontSize='15'>今日 / 收集箱 / 草稿箱 / 日历 / 知识库</text>
+            <text x='20' y='88' fill='#E2E8F0' fontSize='15'>搜索（三模式）/ 信息流 / 图谱 / 设置</text>
+            <text x='20' y='112' fill='#94A3B8' fontSize='14'>79 个源文件 · 15,173 行 TS/TSX</text>
+
+            <rect x='400' y='8' width='360' height='132' rx='10' fill='#151B33' stroke='#4F46E5' />
+            <text x='420' y='38' fill='#4F46E5' fontSize='18' fontWeight='bold'>应用层 · src/core（与界面解耦）</text>
+            <text x='420' y='64' fill='#E2E8F0' fontSize='15'>ai/ 编排 · search/ 检索 · repo/ 存储</text>
+            <text x='420' y='88' fill='#E2E8F0' fontSize='15'>sync/ 同步 · aggregator/ 镜像 · domain/ 纯函数</text>
+            <text x='420' y='112' fill='#94A3B8' fontSize='14'>capabilities.ts：每项能力带原因与修复入口</text>
+
+            <rect x='800' y='8' width='180' height='132' rx='10' fill='#151B33' stroke='#334155' />
+            <text x='820' y='38' fill='#22D3EE' fontSize='18' fontWeight='bold'>桌面壳 · Rust</text>
+            <text x='820' y='64' fill='#E2E8F0' fontSize='15'>通知 / 文件对话框</text>
+            <text x='820' y='88' fill='#E2E8F0' fontSize='15'>托盘 / 悬浮窗 / 快捷键</text>
+            <text x='820' y='112' fill='#94A3B8' fontSize='14'>484 行，只做 Web 做不到的</text>
+
+            <rect x='1000' y='8' width='160' height='132' rx='10' fill='#151B33' stroke='#F0ABFC' strokeDasharray='5 4' />
+            <text x='1020' y='38' fill='#F0ABFC' fontSize='18' fontWeight='bold'>云端 AI（可选）</text>
+            <text x='1020' y='64' fill='#E2E8F0' fontSize='15'>DeepSeek</text>
+            <text x='1020' y='88' fill='#E2E8F0' fontSize='15'>Ollama · 自定义</text>
+            <text x='1020' y='112' fill='#94A3B8' fontSize='14'>OpenAI 兼容协议</text>
+
+            <path d='M360 74 L394 74' stroke='#475569' strokeWidth='2' />
+            <path d='M388 68 L394 74 L388 80' fill='none' stroke='#475569' strokeWidth='2' />
+            <path d='M760 74 L794 74' stroke='#475569' strokeWidth='2' />
+            <path d='M788 68 L794 74 L788 80' fill='none' stroke='#475569' strokeWidth='2' />
+            <path d='M760 60 L1000 60' stroke='#F0ABFC' strokeWidth='2' strokeDasharray='5 4' />
+            <text x='800' y='52' fill='#94A3B8' fontSize='13'>可断开</text>
+
+            <rect x='0' y='190' width='270' height='120' rx='10' fill='#151B33' stroke='#334155' />
+            <text x='20' y='220' fill='#22D3EE' fontSize='18' fontWeight='bold'>本地 AI（离线）</text>
+            <text x='20' y='246' fill='#E2E8F0' fontSize='15'>transformers.js + bge-small-zh</text>
+            <text x='20' y='270' fill='#E2E8F0' fontSize='15'>tesseract.js OCR · 本地规则兜底</text>
+            <text x='20' y='294' fill='#94A3B8' fontSize='14'>25MB 模型，数据不出进程</text>
+
+            <rect x='310' y='190' width='250' height='120' rx='10' fill='#151B33' stroke='#334155' />
+            <text x='330' y='220' fill='#22D3EE' fontSize='18' fontWeight='bold'>本地存储</text>
+            <text x='330' y='246' fill='#E2E8F0' fontSize='15'>IndexedDB（Dexie v1→v4）</text>
+            <text x='330' y='270' fill='#E2E8F0' fontSize='15'>OPFS 附件 · 向量索引 512 维</text>
+            <text x='330' y='294' fill='#94A3B8' fontSize='14'>快照镜像：feedItems</text>
+
+            <rect x='600' y='190' width='300' height='120' rx='10' fill='#151B33' stroke='#4F46E5' />
+            <text x='620' y='220' fill='#4F46E5' fontSize='18' fontWeight='bold'>聚合服务 · Python 常驻</text>
+            <text x='620' y='246' fill='#E2E8F0' fontSize='15'>调度器 → 抓取 → 解析 → 去重 → 存</text>
+            <text x='620' y='270' fill='#E2E8F0' fontSize='15'>正文抓取（按域名限速）→ SQLite</text>
+            <text x='620' y='294' fill='#94A3B8' fontSize='14'>仅监听 127.0.0.1:8787</text>
+
+            <rect x='940' y='190' width='220' height='120' rx='10' fill='#151B33' stroke='#334155' />
+            <text x='960' y='220' fill='#22D3EE' fontSize='18' fontWeight='bold'>同步（可选）</text>
+            <text x='960' y='246' fill='#E2E8F0' fontSize='15'>GitHub 私有仓库</text>
+            <text x='960' y='270' fill='#E2E8F0' fontSize='15'>本地文件夹 · WebDAV</text>
+            <text x='960' y='294' fill='#94A3B8' fontSize='14'>三路合并，冲突不自动覆盖</text>
+
+            <path d='M580 74 L580 190' stroke='#475569' strokeWidth='2' />
+            <path d='M135 140 L135 186' stroke='#475569' strokeWidth='2' />
+            <path d='M435 140 L435 186' stroke='#475569' strokeWidth='2' />
+            <path d='M580 250 L750 250' stroke='#4F46E5' strokeWidth='2' />
+            <path d='M744 244 L750 250 L744 256' fill='none' stroke='#4F46E5' strokeWidth='2' />
+            <text x='620' y='240' fill='#94A3B8' fontSize='13'>本机 HTTP</text>
+            <path d='M890 74 L1050 186' stroke='#475569' strokeWidth='2' strokeDasharray='5 4' />
+
+            <text x='0' y='352' fill='#94A3B8' fontSize='15'>实线 = 默认路径　虚线 = 可选（断开后核心功能仍完整）　紫框 = 可独立部署的进程</text>
+            <text x='0' y='378' fill='#94A3B8' fontSize='15'>聚合服务独立成进程的原因：浏览器关了也要继续抓；且多数站点不提供 CORS 头，前端直连必然失败</text>
+        </svg>
+    </Box>
+
+    <Text style={{ fontSize: 14, color: '#64748B', position: 'absolute', left: 60, top: 670 }}>个人工作台 · v0.2.0</Text>
+</Slide>

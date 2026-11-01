@@ -1,0 +1,27 @@
+<Slide style={{ background: '#0B1020', padding: 60, justifyContent: 'center' }}>
+    <Box style={{ position: 'absolute', top: 0, left: 0, width: 640, height: 720, background: 'linear-gradient(135deg, #4F46E5 0%, transparent 65%)', opacity: 0.22 }} />
+    <Box style={{ position: 'absolute', right: 120, bottom: 120, width: 200, height: 200, borderRadius: 100, background: 'linear-gradient(135deg, #22D3EE 0%, #F0ABFC 100%)', opacity: 0.16 }} />
+
+    <Box style={{ position: 'relative', zIndex: 2 }}>
+        <Text style={{ fontSize: 20, color: '#22D3EE', letterSpacing: 2 }}>个人工作台 · Personal Workspace</Text>
+        <Box style={{ width: 120, height: 1, background: '#334155', marginTop: 20 }} />
+        <Text style={{ fontSize: 52, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 1.35, marginTop: 28 }}>
+            让 AI 在你的数据上干活，
+            <br />
+            而不是把你的数据交给 AI
+        </Text>
+        <Text style={{ fontSize: 22, color: '#94A3B8', lineHeight: 1.6, marginTop: 26 }}>
+            理解（一段话变日程）· 找到（三种检索，连订阅正文）· 聚合（定时抓取自动补正文）
+            <br />
+            每一步都能断开云端，也都能被你核对。
+        </Text>
+
+        <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 20, marginTop: 44 }}>
+            <Text style={{ fontSize: 16, color: '#64748B' }}>github.com/wzsl07/personal-workspace</Text>
+            <Box style={{ width: 1, height: 16, background: '#334155' }} />
+            <Text style={{ fontSize: 16, color: '#64748B' }}>MIT · v0.2.0</Text>
+            <Box style={{ width: 1, height: 16, background: '#334155' }} />
+            <Text style={{ fontSize: 16, color: '#64748B' }}>谢谢，请指正</Text>
+        </Box>
+    </Box>
+</Slide>

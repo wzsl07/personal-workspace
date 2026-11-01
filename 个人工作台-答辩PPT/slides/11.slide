@@ -1,0 +1,65 @@
+<Slide style={{ background: '#0B1020', padding: 60 }}>
+    <Box style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF' }}>工程化设计 · 异常都有去处</Text>
+        <Text style={{ fontSize: 14, color: '#64748B' }}>10 / 降级 · 重试 · 恢复 · 人工介入</Text>
+    </Box>
+    <Box style={{ width: '100%', height: 1, background: 'rgba(34,211,238,0.4)', marginTop: 14 }} />
+
+    <Box style={{ flexDirection: 'row', gap: 20, marginTop: 14, paddingBottom: 10 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#F0ABFC', width: 330 }}>会出什么错</Text>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#F0ABFC', width: 500 }}>系统怎么处理</Text>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#F0ABFC', width: 310 }}>界面怎么说</Text>
+    </Box>
+
+    <Box style={{ marginTop: 4 }}>
+        <Box style={{ flexDirection: 'row', gap: 20, paddingVertical: 10, borderBottom: '1px solid #334155' }}>
+            <Text style={{ fontSize: 17, color: '#E2E8F0', width: 330, lineHeight: 1.4 }}>云端不可用（没填 Key / 断网）</Text>
+            <Text style={{ fontSize: 17, color: '#E2E8F0', width: 500, lineHeight: 1.4 }}>降级链：主模型 → 本地 Ollama → 本地规则</Text>
+            <Text style={{ fontSize: 17, color: '#94A3B8', width: 310, lineHeight: 1.4 }}>标注"本地规则生成"并给出原因</Text>
+        </Box>
+        <Box style={{ flexDirection: 'row', gap: 20, paddingVertical: 10, borderBottom: '1px solid #334155' }}>
+            <Text style={{ fontSize: 17, color: '#E2E8F0', width: 330, lineHeight: 1.4 }}>模型输出不是 JSON / 带代码围栏</Text>
+            <Text style={{ fontSize: 17, color: '#E2E8F0', width: 500, lineHeight: 1.4 }}>剥围栏 → 白名单过滤 → 数值 clamp → 标题兜底</Text>
+            <Text style={{ fontSize: 17, color: '#94A3B8', width: 310, lineHeight: 1.4 }}>报错带服务端原文，不止报状态码</Text>
+        </Box>
+        <Box style={{ flexDirection: 'row', gap: 20, paddingVertical: 10, borderBottom: '1px solid #334155' }}>
+            <Text style={{ fontSize: 17, color: '#E2E8F0', width: 330, lineHeight: 1.4 }}>接口 400（如 JSON 模式要求提示词含 json）</Text>
+            <Text style={{ fontSize: 17, color: '#E2E8F0', width: 500, lineHeight: 1.4 }}>提示词补齐约束字样，输出格式统一</Text>
+            <Text style={{ fontSize: 17, color: '#94A3B8', width: 310, lineHeight: 1.4 }}>同左，问题一次定位到</Text>
+        </Box>
+        <Box style={{ flexDirection: 'row', gap: 20, paddingVertical: 10, borderBottom: '1px solid #334155' }}>
+            <Text style={{ fontSize: 17, color: '#E2E8F0', width: 330, lineHeight: 1.4 }}>抓取失败 / 超时</Text>
+            <Text style={{ fontSize: 17, color: '#E2E8F0', width: 500, lineHeight: 1.4 }}>记 fetch_runs，退避 1m→5m→15m→1h→4h</Text>
+            <Text style={{ fontSize: 17, color: '#94A3B8', width: 310, lineHeight: 1.4 }}>来源卡片显示健康状态与最近错误</Text>
+        </Box>
+        <Box style={{ flexDirection: 'row', gap: 20, paddingVertical: 10, borderBottom: '1px solid #334155' }}>
+            <Text style={{ fontSize: 17, color: '#E2E8F0', width: 330, lineHeight: 1.4 }}>连续失败 5 次</Text>
+            <Text style={{ fontSize: 17, color: '#E2E8F0', width: 500, lineHeight: 1.4 }}>自动隔离，<span style={{ color: '#22D3EE' }}>但可逆</span>：一键清零并立刻到期</Text>
+            <Text style={{ fontSize: 17, color: '#94A3B8', width: 310, lineHeight: 1.4 }}>多出一个"重试"按钮</Text>
+        </Box>
+        <Box style={{ flexDirection: 'row', gap: 20, paddingVertical: 10, borderBottom: '1px solid #334155' }}>
+            <Text style={{ fontSize: 17, color: '#E2E8F0', width: 330, lineHeight: 1.4 }}>robots 不允许 / 内网地址</Text>
+            <Text style={{ fontSize: 17, color: '#E2E8F0', width: 500, lineHeight: 1.4 }}>不重试，记具体原因（每跳重定向都校验）</Text>
+            <Text style={{ fontSize: 17, color: '#94A3B8', width: 310, lineHeight: 1.4 }}>新增来源预检时就提示</Text>
+        </Box>
+        <Box style={{ flexDirection: 'row', gap: 20, paddingVertical: 10, borderBottom: '1px solid #334155' }}>
+            <Text style={{ fontSize: 17, color: '#E2E8F0', width: 330, lineHeight: 1.4 }}>本机聚合服务没启动</Text>
+            <Text style={{ fontSize: 17, color: '#E2E8F0', width: 500, lineHeight: 1.4 }}>1.5 秒快速失败，退回上次快照继续可搜</Text>
+            <Text style={{ fontSize: 17, color: '#94A3B8', width: 310, lineHeight: 1.4 }}>"显示的是上次快照"+ 更新时间</Text>
+        </Box>
+        <Box style={{ flexDirection: 'row', gap: 20, paddingVertical: 10, borderBottom: '1px solid #334155' }}>
+            <Text style={{ fontSize: 17, color: '#E2E8F0', width: 330, lineHeight: 1.4 }}>桌面原生能力调用不到</Text>
+            <Text style={{ fontSize: 17, color: '#E2E8F0', width: 500, lineHeight: 1.4 }}>命令名静态体检脚本前置拦截</Text>
+            <Text style={{ fontSize: 17, color: '#94A3B8', width: 310, lineHeight: 1.4 }}>构建期报错，不等运行时发现</Text>
+        </Box>
+    </Box>
+
+    <Box style={{ marginTop: 14, padding: 16, background: '#151B33', borderRadius: 8, borderLeft: '3px solid #F0ABFC' }}>
+        <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+            <span style={{ fontWeight: 'bold', color: '#F0ABFC' }}>人工介入的闸门</span>
+            ：AI 解析结果一律进草稿箱等你确认；每条能力不可用都必须给出一句人话原因 + 修复入口 —— 不允许"灰着但没解释"。
+        </Text>
+    </Box>
+
+    <Text style={{ fontSize: 14, color: '#64748B', position: 'absolute', left: 60, top: 670 }}>个人工作台 · v0.2.0</Text>
+</Slide>

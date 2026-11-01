@@ -1,0 +1,26 @@
+<Slide style={{ background: '#0B1020', padding: 60, justifyContent: 'space-between' }}>
+    <Box style={{ position: 'absolute', top: 0, right: 0, width: 520, height: 720, background: 'linear-gradient(225deg, #4F46E5 0%, transparent 70%)', opacity: 0.28 }} />
+    <Box style={{ position: 'absolute', right: 90, top: 180, width: 240, height: 240, borderRadius: 120, background: 'linear-gradient(135deg, #22D3EE 0%, #4F46E5 100%)', opacity: 0.18 }} />
+
+    <Box style={{ position: 'relative', zIndex: 2, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+        <Box style={{ width: 12, height: 12, borderRadius: 6, background: '#22D3EE' }} />
+        <Text style={{ fontSize: 16, color: '#94A3B8', letterSpacing: 1 }}>AI Application 比赛 · 赛道 B</Text>
+    </Box>
+
+    <Box style={{ position: 'relative', zIndex: 2 }}>
+        <Text style={{ fontSize: 72, fontWeight: 'bold', color: '#FFFFFF', lineHeight: 1.15 }}>个人工作台</Text>
+        <Box style={{ width: '100%', height: 1, background: 'rgba(34,211,238,0.5)', marginTop: 20 }} />
+        <Text style={{ fontSize: 26, color: '#22D3EE', marginTop: 24, lineHeight: 1.45 }}>
+            本地优先、离线可用的个人日程与知识库
+        </Text>
+        <Text style={{ fontSize: 20, color: '#94A3B8', marginTop: 14, lineHeight: 1.5 }}>
+            AI 是可插拔的一层 —— 断开它，仍然是一个完整的工具
+        </Text>
+    </Box>
+
+    <Box style={{ position: 'relative', zIndex: 2, flexDirection: 'row', alignItems: 'center', gap: 24 }}>
+        <Text style={{ fontSize: 14, color: '#64748B' }}>github.com/wzsl07/personal-workspace</Text>
+        <Box style={{ width: 1, height: 14, background: '#334155' }} />
+        <Text style={{ fontSize: 14, color: '#64748B' }}>v0.2.0 · MIT</Text>
+    </Box>
+</Slide>

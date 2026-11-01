@@ -1,0 +1,62 @@
+<Slide style={{ background: '#0B1020', padding: 60 }}>
+    <Box style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF' }}>总结与不足</Text>
+        <Text style={{ fontSize: 14, color: '#64748B' }}>13 / 已完成 · 未解决 · 下一步</Text>
+    </Box>
+    <Box style={{ width: '100%', height: 1, background: 'rgba(34,211,238,0.4)', marginTop: 14 }} />
+
+    <Box style={{ flexDirection: 'row', gap: 26, marginTop: 18 }}>
+        <Box style={{ flex: 1, padding: 20, background: '#151B33', borderRadius: 8, borderTop: '3px solid #22D3EE' }}>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#22D3EE' }}>已做到的（对照成功标准）</Text>
+            <Box style={{ gap: 12, marginTop: 16 }}>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    ① 472 字通知 → <span style={{ color: '#F0ABFC', fontWeight: 'bold' }}>9 条</span>带时间、地点、优先级的草稿，确认才入库
+                </Text>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    ② 忘了原话也能搜到：语义相似度 51%–56%，
+                    <span style={{ color: '#F0ABFC', fontWeight: 'bold' }}>60/75</span> 条订阅正文进索引
+                </Text>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    ③ 问一句有答案 + <span style={{ color: '#F0ABFC', fontWeight: 'bold' }}>[1][2]</span> 引用，点开就是原文
+                </Text>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    ④ 断网 / 没 Key 时核心功能仍可用，且<span style={{ color: '#22D3EE' }}>说明清楚降级到了哪一步</span>
+                </Text>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    ⑤ 工程闭环：66 项自检、抓取日志、能力体检、诊断包（不含用户数据）
+                </Text>
+            </Box>
+        </Box>
+
+        <Box style={{ flex: 1, padding: 20, background: '#151B33', borderRadius: 8, borderTop: '3px solid #F0ABFC' }}>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#F0ABFC' }}>还没解决的</Text>
+            <Box style={{ gap: 12, marginTop: 16 }}>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    · 语义索引仍是串行构建，上千条要数分钟（已用"可选 + 上限"缓解，未根治）
+                </Text>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    · 向量检索线性扫描，没有 HNSW；当前量级无感，上万条会成瓶颈
+                </Text>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    · 手机上没有语义搜索（25MB 模型不合适），信息流也读不到本机服务
+                </Text>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    · 13 条抓取失败是 robots 不允许 —— 该不该放行得用户自己决定
+                </Text>
+                <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    · 同步是全量快照，不是增量；也没有公开的自动化 Benchmark
+                </Text>
+            </Box>
+        </Box>
+    </Box>
+
+    <Box style={{ marginTop: 16, padding: 16, background: 'linear-gradient(120deg, #4F46E5 0%, #151B33 100%)', borderRadius: 8 }}>
+        <Text style={{ fontSize: 18, color: '#FFFFFF', lineHeight: 1.5 }}>
+            <span style={{ fontWeight: 'bold', color: '#F0ABFC' }}>下一步</span>
+            ：批量推理与 Web Worker（提速 + 不卡界面）→ HNSW 索引 → 问答流式输出 → 增量同步 → 补一份可复现的 Benchmark 脚本。
+            方向很明确：**先把"本地这一侧"做快，再决定要不要把重活搬到云上。**
+        </Text>
+    </Box>
+
+    <Text style={{ fontSize: 14, color: '#64748B', position: 'absolute', left: 60, top: 670 }}>个人工作台 · v0.2.0</Text>
+</Slide>

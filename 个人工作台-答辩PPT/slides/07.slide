@@ -1,0 +1,58 @@
+<Slide style={{ background: '#0B1020', padding: 60 }}>
+    <Box style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF' }}>结果与证据 · 一条通知走完全程</Text>
+        <Text style={{ fontSize: 14, color: '#64748B' }}>06 / 端到端效果</Text>
+    </Box>
+    <Box style={{ width: '100%', height: 1, background: 'rgba(34,211,238,0.4)', marginTop: 14 }} />
+
+    <Box style={{ flexDirection: 'row', gap: 32, marginTop: 22 }}>
+        <Box style={{ width: 400 }}>
+            <Box style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12 }}>
+                <Text style={{ fontSize: 96, fontWeight: 'bold', color: '#F0ABFC', lineHeight: 1 }}>9</Text>
+                <Text style={{ fontSize: 18, color: '#94A3B8', marginBottom: 14 }}>条结构化草稿</Text>
+            </Box>
+            <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.6, marginTop: 8 }}>
+                从一段 <span style={{ color: '#22D3EE', fontWeight: 'bold' }}>472 字</span>的班级群消息里解析出来，
+                每条都带类型、优先级、开始/截止、地点、标签。
+            </Text>
+
+            <Box style={{ gap: 14, marginTop: 22 }}>
+                <Box style={{ flexDirection: 'row', gap: 12 }}>
+                    <Box style={{ width: 28, height: 28, borderRadius: 14, background: '#4F46E5' }} />
+                    <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5, flex: 1 }}>
+                        模型没把握的字段<span style={{ color: '#F0ABFC' }}>标黄</span>，提醒你重点看这几处
+                    </Text>
+                </Box>
+                <Box style={{ flexDirection: 'row', gap: 12 }}>
+                    <Box style={{ width: 28, height: 28, borderRadius: 14, background: '#22D3EE' }} />
+                    <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5, flex: 1 }}>
+                        左原文右字段对照改，可"丢弃 / 保存修改 / 确认并加入"
+                    </Text>
+                </Box>
+                <Box style={{ flexDirection: 'row', gap: 12 }}>
+                    <Box style={{ width: 28, height: 28, borderRadius: 14, background: '#F0ABFC' }} />
+                    <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5, flex: 1 }}>
+                        不确认就不入库 —— AI 全程只写草稿箱
+                    </Text>
+                </Box>
+            </Box>
+        </Box>
+
+        <Box style={{ width: 700 }}>
+            <Image src="assets/drafts.png" style={{ width: 700, height: 300, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155' }} />
+            <Box style={{ flexDirection: 'row', gap: 16, marginTop: 12 }}>
+                <Image src="assets/inbox-input.png" style={{ width: 340, height: 140, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155' }} />
+                <Image src="assets/inbox-item.png" style={{ width: 340, height: 140, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155' }} />
+            </Box>
+        </Box>
+    </Box>
+
+    <Box style={{ marginTop: 16, padding: 16, background: '#151B33', borderRadius: 8, borderLeft: '3px solid #22D3EE' }}>
+        <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+            <span style={{ fontWeight: 'bold', color: '#22D3EE' }}>价值</span>
+            ：原本要手打 9 条日程、逐条填时间和地点，现在只需要粘贴 + 点确认 —— 而且不会漏掉"面试要带简历"这种藏在段落中间的截止点。
+        </Text>
+    </Box>
+
+    <Text style={{ fontSize: 14, color: '#64748B', position: 'absolute', left: 60, top: 670 }}>个人工作台 · v0.2.0</Text>
+</Slide>

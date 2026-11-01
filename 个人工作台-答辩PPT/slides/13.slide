@@ -1,0 +1,96 @@
+<Slide style={{ background: '#0B1020', padding: 60 }}>
+    <Box style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <Text style={{ fontSize: 34, fontWeight: 'bold', color: '#FFFFFF' }}>成本、性能与取舍</Text>
+        <Text style={{ fontSize: 14, color: '#64748B' }}>12 / 当前瓶颈与优化方向</Text>
+    </Box>
+    <Box style={{ width: '100%', height: 1, background: 'rgba(34,211,238,0.4)', marginTop: 14 }} />
+
+    <Box style={{ flexDirection: 'row', gap: 22, marginTop: 18 }}>
+        <Box style={{ flex: 1, padding: 18, background: '#151B33', borderRadius: 8 }}>
+            <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#22D3EE' }}>API 成本</Text>
+            <Text style={{ fontSize: 16, color: '#94A3B8', marginTop: 6 }}>DeepSeek 峰谷价 · 空闲时段</Text>
+            <Box style={{ gap: 10, marginTop: 14 }}>
+                <Box style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 17, color: '#E2E8F0' }}>收集箱解析一次</Text>
+                    <Text style={{ fontSize: 17, color: '#F0ABFC' }}>¥0.0026</Text>
+                </Box>
+                <Box style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 17, color: '#E2E8F0' }}>问答一次（2 次调用）</Text>
+                    <Text style={{ fontSize: 17, color: '#F0ABFC' }}>¥0.0045</Text>
+                </Box>
+                <Box style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 17, color: '#E2E8F0' }}>查询改写一次</Text>
+                    <Text style={{ fontSize: 17, color: '#F0ABFC' }}>¥0.0006</Text>
+                </Box>
+                <Box style={{ height: 1, background: '#334155', marginVertical: 4 }} />
+                <Text style={{ fontSize: 17, color: '#E2E8F0', lineHeight: 1.5 }}>
+                    每天 20 次解析 + 10 次问答 ≈ <span style={{ color: '#22D3EE', fontWeight: 'bold' }}>¥3 / 月</span>
+                </Text>
+                <Text style={{ fontSize: 17, color: '#94A3B8', lineHeight: 1.5 }}>
+                    关掉云端 = ¥0：全部走本地规则与本地向量
+                </Text>
+            </Box>
+        </Box>
+
+        <Box style={{ flex: 1, padding: 18, background: '#151B33', borderRadius: 8 }}>
+            <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#22D3EE' }}>端到端延迟（实测）</Text>
+            <Text style={{ fontSize: 16, color: '#94A3B8', marginTop: 6 }}>本机 · 83 条索引</Text>
+            <Box style={{ gap: 10, marginTop: 14 }}>
+                <Box style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 17, color: '#E2E8F0' }}>全文 / 语义检索</Text>
+                    <Text style={{ fontSize: 17, color: '#F0ABFC' }}>毫秒级</Text>
+                </Box>
+                <Box style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 17, color: '#E2E8F0' }}>向量模型首次加载</Text>
+                    <Text style={{ fontSize: 17, color: '#F0ABFC' }}>1.2 s</Text>
+                </Box>
+                <Box style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 17, color: '#E2E8F0' }}>建索引</Text>
+                    <Text style={{ fontSize: 17, color: '#F0ABFC' }}>30–60 ms/条</Text>
+                </Box>
+                <Box style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 17, color: '#E2E8F0' }}>问答（云端）</Text>
+                    <Text style={{ fontSize: 17, color: '#F0ABFC' }}>2–5 s</Text>
+                </Box>
+                <Box style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 17, color: '#E2E8F0' }}>补正文（62 条）</Text>
+                    <Text style={{ fontSize: 17, color: '#F0ABFC' }}>约 2 分钟</Text>
+                </Box>
+                <Text style={{ fontSize: 16, color: '#94A3B8', lineHeight: 1.5, marginTop: 4 }}>
+                    资源：安装包 27MB · 索引 2KB/条 · 常驻内存 34MB
+                </Text>
+            </Box>
+        </Box>
+
+        <Box style={{ flex: 1, padding: 18, background: 'linear-gradient(160deg, #4F46E5 0%, #151B33 100%)', borderRadius: 8 }}>
+            <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#FFFFFF' }}>瓶颈与下一步</Text>
+            <Box style={{ gap: 10, marginTop: 14 }}>
+                <Text style={{ fontSize: 17, color: '#E2E8F0', lineHeight: 1.45 }}>
+                    ① 索引构建串行（逐条 embed）→ 改批量推理，提速 3–5 倍
+                </Text>
+                <Text style={{ fontSize: 17, color: '#E2E8F0', lineHeight: 1.45 }}>
+                    ② 向量检索线性扫描 → 量级上万后引入 HNSW
+                </Text>
+                <Text style={{ fontSize: 17, color: '#E2E8F0', lineHeight: 1.45 }}>
+                    ③ 问答两次调用串行 → 改流式输出，首字延迟 &lt;1s
+                </Text>
+                <Text style={{ fontSize: 17, color: '#E2E8F0', lineHeight: 1.45 }}>
+                    ④ 计算都在主线程 → 搬进 Web Worker，界面不再卡
+                </Text>
+                <Text style={{ fontSize: 17, color: '#E2E8F0', lineHeight: 1.45 }}>
+                    ⑤ 正文抓取串行 → 按域名并发
+                </Text>
+            </Box>
+        </Box>
+    </Box>
+
+    <Box style={{ marginTop: 14, padding: 16, background: '#151B33', borderRadius: 8, borderLeft: '3px solid #22D3EE' }}>
+        <Text style={{ fontSize: 18, color: '#E2E8F0', lineHeight: 1.5 }}>
+            <span style={{ fontWeight: 'bold', color: '#22D3EE' }}>已经做过的取舍</span>
+            ：语义搜索设为<span style={{ color: '#F0ABFC' }}>可选、默认关</span>（25MB + 建索引耗时），
+            把"想不起用词"这个高频需求交给更便宜的查询改写 —— 这就是性能与体验之间的那条线。
+        </Text>
+    </Box>
+
+    <Text style={{ fontSize: 14, color: '#64748B', position: 'absolute', left: 60, top: 670 }}>个人工作台 · v0.2.0</Text>
+</Slide>
